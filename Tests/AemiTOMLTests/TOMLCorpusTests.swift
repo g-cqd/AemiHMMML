@@ -51,8 +51,7 @@ struct TOMLCorpusTests {
 
 /// The pinned corpus under `.build/fixtures/corpus`: one directory per repository.
 enum Corpus {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent(".build/fixtures/corpus")
+    static let root = fixturesRoot(#filePath).appendingPathComponent("corpus")
 
     static var isAvailable: Bool {
         let present = FileManager.default.fileExists(atPath: root.path)

@@ -1,3 +1,5 @@
+internal import AemiHMMMLCore
+
 /// Decodes a `Decodable` value from TOML (ADR-0011), reading the parsed document through its views: only the values the type asks
 /// for are decoded, strings included.
 ///
@@ -28,6 +30,6 @@ public struct TOMLDecoder: Sendable {
 
     /// Decodes one value of a document, a table or any other kind.
     public func decode<T: Decodable>(_ type: T.Type, from value: TOMLValue) throws -> T {
-        try TOMLDecoding(value: value, codingPath: [], userInfo: userInfo).decode(type, from: value, at: [])
+        try MarkupDecoding(value: value, codingPath: [], userInfo: userInfo).decode(type, from: value, at: [])
     }
 }

@@ -74,3 +74,10 @@ The rest of the plan's verification for this phase (section 5):
 - **Linux**: the whole test suite passes in swift:6.4.1-noble.
 
 Mutation testing (litmus) is not done yet: it is opt-in and local in swift-ci, and is the next check to run on the scanner.
+
+## Amendment (2026-11-05): the event figures, measured again
+
+The table above does not reproduce: the commit it describes, benchmarked again on the same corpus with the same toolchain, takes
+116 M instructions (154 per byte), not 79 M; the earlier run's conditions are not known. Measured side by side now, with the
+quoted-only characters (5 M) and the constant-time simple-key bookkeeping (ADR-0013; 6 M) added: events 127 M instructions, 169
+per byte, at parity with libyaml's 170 rather than ahead of it. The SIMD pass the plan targets is what is left to do.

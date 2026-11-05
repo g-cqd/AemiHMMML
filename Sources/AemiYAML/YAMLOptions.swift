@@ -1,10 +1,15 @@
 public import AemiHMMMLCore
 
-/// How a YAML stream is read (ADR-0004, ADR-0005). Phase 3 reads strictly; recovery arrives with phase 6 (ADR-0001).
+/// How a YAML stream is read (ADR-0004, ADR-0005). Strict; recovery arrives with phase 6 (ADR-0001).
 public struct YAMLOptions: Sendable, Hashable {
     public var limits: MarkupLimits
+    /// How plain scalars resolve to types when documents are composed (events do not resolve).
+    public var schema: YAMLSchema
 
-    public init(limits: MarkupLimits = .default) { self.limits = limits }
+    public init(limits: MarkupLimits = .default, schema: YAMLSchema = .core) {
+        self.limits = limits
+        self.schema = schema
+    }
 }
 
 extension Diagnostic.Code {
@@ -22,6 +27,12 @@ extension Diagnostic.Code {
     public static let yamlDirective = Self(rawValue: "yaml-directive")
     /// A tag whose handle no `%TAG` directive defines, or that is malformed.
     public static let yamlTag = Self(rawValue: "yaml-tag")
+    /// An alias naming no anchor defined before it, or a node it lies inside (a recursive structure).
+    public static let yamlAlias = Self(rawValue: "yaml-alias")
+    /// A key that equals an earlier key of the same mapping (ADR-0006).
+    public static let yamlDuplicateKey = Self(rawValue: "yaml-duplicate-key")
+    /// A scalar whose value does not fit its tag, or (under the JSON schema) a plain scalar that is none of JSON's.
+    public static let yamlResolution = Self(rawValue: "yaml-resolution")
     /// A character YAML forbids in a stream: a C0 or C1 control other than tab and line breaks, DEL, U+FFFE or U+FFFF.
     public static let yamlControlCharacter = Self(rawValue: "yaml-control-character")
 }

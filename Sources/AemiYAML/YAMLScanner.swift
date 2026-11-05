@@ -25,7 +25,10 @@ struct YAMLScanner {
     /// For each open flow collection, whether it is a mapping (its implicit keys may span lines).
     var flowIsMapping: [Bool] = []
     var simpleKeyAllowed = true
-    var simpleKeys = [YAMLSimpleKey()]
+    var simpleKeys = YAMLSimpleKeyStack()
+    /// The line staleSimpleKeys last cleared line-bound keys for, and its count of the oldest key's characters so far.
+    private var staleCheckedLine = -1
+    private var counted = (offset: -1, end: 0, characters: 0)
     /// In flow context, the token count right after a JSON-like node (a quoted scalar, a flow collection): while no other token
     /// follows, a `:` is a value indicator even before a non-space (`{"a":1}`, and after line breaks and comments too).
     var jsonLikeTokenCount = -1
@@ -73,7 +76,8 @@ struct YAMLScanner {
             var needed = head == tokens.count
             if !needed {
                 try staleSimpleKeys()
-                needed = simpleKeys.contains { $0.possible && $0.tokenNumber == tokensParsed }
+                // The oldest possible key has the smallest token number: if any key sits at the queue's head, it does.
+                needed = simpleKeys.oldestKey?.tokenNumber == tokensParsed
             }
             guard needed, !streamEndProduced else { return }
             try fetchNextToken()
@@ -188,37 +192,53 @@ struct YAMLScanner {
         let column = column(at: index)
         let required = flowLevel == 0 && indent == column
         try removeSimpleKey()
-        simpleKeys[simpleKeys.count - 1] = YAMLSimpleKey(
-            possible: true,
-            required: required,
-            tokenNumber: tokensParsed + (tokens.count - head),
-            offset: index,
-            line: line,
-            column: column,
-            tabbed: flowLevel == 0 && ((!tokenOnLine && tabInIndentation) || (tokenOnLine && tabSeparated))
+        simpleKeys.setInnermost(
+            YAMLSimpleKey(
+                possible: true,
+                required: required,
+                tokenNumber: tokensParsed + (tokens.count - head),
+                offset: index,
+                line: line,
+                column: column,
+                tabbed: flowLevel == 0 && ((!tokenOnLine && tabInIndentation) || (tokenOnLine && tabSeparated))
+            )
         )
     }
 
     mutating func removeSimpleKey() throws(Diagnostic) {
-        let key = simpleKeys[simpleKeys.count - 1]
+        try expire(simpleKeys.innermostLevel)
+    }
+
+    /// A key that can be one no longer: an error if it had to be.
+    private mutating func expire(_ level: Int) throws(Diagnostic) {
+        let key = simpleKeys[level]
         if key.possible, key.required {
             throw error(.yamlImplicitKey, at: key.offset, "an implicit key without its ':'")
         }
-        simpleKeys[simpleKeys.count - 1].possible = false
+        simpleKeys.clear(level)
     }
 
     /// Keys that can no longer be keys: on an earlier line (except in a flow mapping, whose keys may span lines), or further back
-    /// than the implicit key limit (1024 characters, YAML 1.2.2 §7.4.2).
+    /// than the implicit key limit (1024 characters, YAML 1.2.2 §7.4.2). Constant time per call, amortized (YAMLSimpleKeyStack).
     mutating func staleSimpleKeys() throws(Diagnostic) {
-        for level in simpleKeys.indices where simpleKeys[level].possible {
-            let key = simpleKeys[level]
-            let inFlowMapping = level > 0 && flowIsMapping[level - 1]
-            let limit = limits.implicitKeyLength
-            let tooFar = index - key.offset > limit && characters(key.offset ..< index) > limit
-            guard (key.line < line && !inFlowMapping) || tooFar else { continue }
-            if key.required { throw error(.yamlImplicitKey, at: key.offset, "an implicit key without its ':'") }
-            simpleKeys[level].possible = false
+        guard simpleKeys.oldest != Int.max else { return }
+        if line != staleCheckedLine {
+            while let level = simpleKeys.nextSavedBefore(line: line) { try expire(level) }
+            staleCheckedLine = line
         }
+        while let key = simpleKeys.oldestKey, isTooFar(key) { try expire(simpleKeys.oldest) }
+    }
+
+    /// Whether more than the implicit key limit's characters lie between `key` and here: counted once per byte, not per call.
+    private mutating func isTooFar(_ key: YAMLSimpleKey) -> Bool {
+        let limit = limits.implicitKeyLength
+        let bytes = index - key.offset
+        if bytes <= limit { return false }
+        if bytes > 4 * limit { return true }
+        if counted.offset != key.offset { counted = (key.offset, key.offset, 0) }
+        counted.characters += characters(counted.end ..< index)
+        counted.end = index
+        return counted.characters > limit
     }
 
     func characters(_ range: Range<Int>) -> Int {

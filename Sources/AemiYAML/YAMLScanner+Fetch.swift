@@ -138,7 +138,7 @@ extension YAMLScanner {
         try saveSimpleKey()
         flowLevel += 1
         flowIsMapping.append(mapping)
-        simpleKeys.append(YAMLSimpleKey())
+        simpleKeys.push(mapping: mapping)
         try checkDepth(at: index)
         simpleKeyAllowed = true
         let start = index
@@ -151,7 +151,7 @@ extension YAMLScanner {
         if flowLevel > 0 {
             flowLevel -= 1
             flowIsMapping.removeLast()
-            simpleKeys.removeLast()
+            simpleKeys.pop()
         }
         simpleKeyAllowed = false
         let start = index
@@ -198,14 +198,14 @@ extension YAMLScanner {
     }
 
     mutating func fetchValue() throws(Diagnostic) {
-        let key = simpleKeys[simpleKeys.count - 1]
+        let key = simpleKeys.innermost
         if key.possible {
             if key.tabbed, flowLevel == 0, indent < key.column {
                 throw error(.yamlIndentation, at: key.offset, "a tab in indentation")
             }
             insert(.key, number: key.tokenNumber, at: key.offset, line: key.line)
             try rollIndent(key.column, .blockMappingStart, number: key.tokenNumber, at: key.offset, line: key.line)
-            simpleKeys[simpleKeys.count - 1].possible = false
+            simpleKeys.clear(simpleKeys.innermostLevel)
             simpleKeyAllowed = false
         } else {
             if flowLevel == 0 {

@@ -59,8 +59,7 @@ struct TOMLConformanceTests {
 }
 
 enum TOMLTestSuite {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent(".build/fixtures/toml-test/tests")
+    static let root = fixturesRoot(#filePath).appendingPathComponent("toml-test/tests")
 
     static var isAvailable: Bool {
         let present = FileManager.default.fileExists(atPath: root.appendingPathComponent("files-toml-1.1.0").path)

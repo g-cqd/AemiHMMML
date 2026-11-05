@@ -29,8 +29,7 @@ struct ProjectionTests {
         "every valid toml-test document projects to its JSON without the type tags, from the views and from a tree alike"
     )
     func suite() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent(".build/fixtures/toml-test/tests")
+        let root = fixturesRoot(#filePath).appendingPathComponent("toml-test/tests")
         let list = root.appendingPathComponent("files-toml-1.1.0")
         guard let names = try? String(contentsOf: list, encoding: .utf8) else {
             #expect(ProcessInfo.processInfo.environment["AEMIHMMML_FIXTURES"] != "required", "toml-test is not fetched")
@@ -118,5 +117,33 @@ struct ProjectionTests {
             case .object(let object): .object(object.mapValues(comparable))
             default: value
         }
+    }
+}
+
+@Suite("YAML projected to JSONValue")
+struct YAMLProjectionTests {
+    @Test("each kind maps as ADR-0008 says, aliases expanded, a table's order kept, a complex key as its JSON text")
+    func mapping() throws {
+        let document = try YAMLDocument(
+            parsing: "z: ~\nb: [1, 2.5, .inf]\nc: &c {d: true}\ne: *c\n? [x, 1]\n: complex\nbig: 99999999999999999999\n"
+        )
+        let expected: JSONValue = [
+            "z": .null, "b": [1, 2.5, .number(.infinity)], "c": ["d": true], "e": ["d": true], "[\"x\",1]": "complex",
+            "big": .number(1e20)
+        ]
+        #expect(document.json == expected)
+        guard case .object(let object) = document.json else {
+            Issue.record("not an object")
+            return
+        }
+        #expect(Array(object.keys) == ["z", "b", "c", "e", "[\"x\",1]", "big"])
+    }
+
+    @Test("a date in YAML decodes into a Date through the shared decoder")
+    func dates() throws {
+        struct Event: Decodable { var at: Date }
+        let event = try YAMLDecoder().decode(Event.self, from: "at: 2023-11-14T22:13:20.5Z")
+        #expect(event.at == Date(timeIntervalSince1970: 1_700_000_000.5))
+        #expect(throws: DecodingError.self) { try YAMLDecoder().decode(Event.self, from: "at: 2023-11-14") }
     }
 }

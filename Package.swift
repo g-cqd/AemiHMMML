@@ -80,6 +80,7 @@ let package = Package(
             dependencies: [
                 "AemiHMMMLCore",
                 "AemiTOML",
+                "AemiYAML",
                 .product(name: "AemiKernel", package: "aemi"),
                 .product(name: "AemiJSONCore", package: "AemiJSON"),
                 .product(name: "OrderedCollections", package: "swift-collections")

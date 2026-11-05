@@ -31,8 +31,7 @@ struct YAMLSuiteTests {
 }
 
 enum YAMLTestSuite {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent(".build/fixtures/yaml-test-suite")
+    static let root = fixturesRoot(#filePath).appendingPathComponent("yaml-test-suite")
 
     static var isAvailable: Bool {
         let present = FileManager.default.fileExists(atPath: root.appendingPathComponent("229Q").path)

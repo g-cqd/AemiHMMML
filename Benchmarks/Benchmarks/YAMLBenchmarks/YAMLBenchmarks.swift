@@ -50,6 +50,13 @@ nonisolated(unsafe) let benchmarks = {
             }
         }
     }
+    // Composed (aliases linked, the core schema resolving plain scalars, duplicate keys refused), as Yams composes.
+    let composable = sources.filter { (try? YAMLDocument.documents(parsing: $0)) != nil }
+    Benchmark("yaml/compose/corpus/AemiYAML") { benchmark in
+        for _ in benchmark.scaledIterations {
+            for source in composable { blackHole(try? YAMLDocument.documents(parsing: source)) }
+        }
+    }
     Benchmark("yaml/compose/corpus/Yams") { benchmark in
         for _ in benchmark.scaledIterations {
             for text in texts {

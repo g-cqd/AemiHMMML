@@ -28,9 +28,42 @@ struct YAMLCorpusTests {
     }
 }
 
+extension YAMLCorpusTests {
+    /// Files refused when composed, each with why: real files that break YAML 1.2's rules (ADR-0006: duplicate keys are errors).
+    /// libfyaml's document builder refuses the same five (and has no document for a sixth file that holds only comments).
+    static let notComposable: [String: String] = [
+        "kubernetes-examples/_archived/openshift-origin/etcd-controller.yaml": "`selector` twice in one mapping",
+        "kubernetes-examples/_archived/openshift-origin/etcd-discovery-controller.yaml":
+            "`selector` twice in one mapping",
+        "kubernetes-examples/_archived/openshift-origin/openshift-controller.yaml": "`selector` twice in one mapping",
+        "kubernetes-examples/_archived/persistent-volume-provisioning/quobyte/quobyte-admin-secret.yaml":
+            "`type` twice",
+        "kubernetes-examples/_archived/volumes/scaleio/sc-pvc.yaml": "`storageClassName` twice"
+    ]
+
+    @Test(
+        "every corpus YAML file composes under the core schema, but the ones listed with their reasons, which are refused"
+    )
+    func composition() throws {
+        var refused: [String: String] = [:]
+        for file in try YAMLCorpus.files() {
+            do {
+                _ = try YAMLDocument.documents(
+                    parsing: Array(try Data(contentsOf: YAMLCorpus.root.appendingPathComponent(file)))
+                )
+            } catch {
+                refused[file] = "\(error)"
+            }
+        }
+        let unexpected = refused.keys.filter { Self.notComposable[$0] == nil }.sorted()
+        let accepted = Self.notComposable.keys.filter { refused[$0] == nil }.sorted()
+        #expect(unexpected.isEmpty, "\(unexpected.map { "\($0): \(refused[$0] ?? "")" }.joined(separator: "\n"))")
+        #expect(accepted.isEmpty, "listed as refused but composed: \(accepted)")
+    }
+}
+
 enum YAMLCorpus {
-    static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent(".build/fixtures/corpus")
+    static let root = fixturesRoot(#filePath).appendingPathComponent("corpus")
 
     static var isAvailable: Bool {
         let present = FileManager.default.fileExists(atPath: root.path)
