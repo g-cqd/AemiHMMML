@@ -19,3 +19,20 @@ which its own documentation says is no defence against keys chosen to collide; T
 interner (a `seed:` on `Interner`) is the change that would let both formats use it; until then `Hasher` stands.
 
 Measured comparisons against the references (ADR-0004's limits, the plan's section 6) decide what is tuned next, not guesses.
+
+## Amendment (2026-11-05): the hot paths moved into aemi
+
+At the owner's request, what this ADR took from the siblings is now aemi's (aemi ADR 0031, issue #5), and AemiHMMML uses it
+instead of its own copies:
+
+| Was here | Now |
+|---|---|
+| `AemiHMMMLCore.ByteScan` | `AemiKernel.ByteScan` (the same scans, with SWAR fronts and `firstIndex(notInSet:)` on a new SIMD kernel) |
+| `AemiHMMMLCore.LineIndex`, `SourceLocation` | `AemiText.LineIndex` and its `Location`, built by a bulk positions kernel |
+| `TOMLKeyIndex`'s table and `Hasher` | `HashIndex` over `KeyedHash` (SipHash-1-3 under the process key, 2.2 times faster than `Hasher` on short keys) |
+| `TOMLDateTime`'s parser | `RFC3339DateTime` with `.toml10` / `.toml11`; `TOMLDateTime` is now its alias |
+| `TOMLNumbers`' float reader | `DecimalScanner` with `_` as separator and `DecimalFloat.double(_:in:)` |
+
+AemiInterner can now hash with `KeyedHash` too, which removes this ADR's objection to it; AemiTOML still keeps keys in its own
+nodes, so it uses the index without interning. Parse cost after the move, against before it: canada 36 instructions per byte
+(42), cargo-lock 38 (40), twitter 50 (52), with the same toml-test results.

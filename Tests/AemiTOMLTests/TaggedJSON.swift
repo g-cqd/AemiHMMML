@@ -1,3 +1,4 @@
+import AemiKernel
 import Foundation
 
 @testable import AemiTOML
@@ -51,7 +52,7 @@ enum TaggedJSON {
                     "time-local": .localTime
                 ]
                 guard kinds[type] == actual.kind,
-                    let wanted = TOMLDateTime.parse(Array(value.utf8)[...], version: .v1_1),
+                    let wanted = TOMLDateTime(parsing: Array(value.utf8)[...], syntax: .toml11),
                     wanted == actual.dateTime
                 else { return mismatch }
                 return nil

@@ -1,4 +1,6 @@
 internal import AemiHMMMLCore
+internal import AemiKernel
+internal import AemiKernels
 
 /// The four forms of a TOML string.
 enum TOMLStringStyle: UInt8 {

@@ -1,3 +1,4 @@
+import AemiText
 import Testing
 
 @testable import AemiHMMMLCore

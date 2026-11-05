@@ -15,7 +15,7 @@ let strictSettings: [SwiftSetting] = [
 
 let aemiDependency: Package.Dependency = .package(
     url: "https://github.com/Aemi-Studio/aemi.git",
-    revision: "60b34bc66ab60934e940df4f744d1a2b0a5e27b3"
+    revision: "ede3da2e4830eed532ceb1e014fbbdd8952a0911"
 )
 
 // The formats arrive one product at a time (docs/research/plan-2026-11-05.md, section 7): AemiTOML, AemiYAML, AemiFrontMatter, then the
@@ -33,13 +33,18 @@ let package = Package(
             name: "AemiHMMMLCore",
             dependencies: [
                 .product(name: "AemiKernel", package: "aemi"),
-                .product(name: "AemiKernels", package: "aemi")
+                .product(name: "AemiKernels", package: "aemi"),
+                .product(name: "AemiText", package: "aemi")
             ],
             swiftSettings: strictSettings
         ),
         .target(
             name: "AemiTOML",
-            dependencies: ["AemiHMMMLCore", .product(name: "AemiKernel", package: "aemi")],
+            dependencies: [
+                "AemiHMMMLCore",
+                .product(name: "AemiKernel", package: "aemi"),
+                .product(name: "AemiKernels", package: "aemi")
+            ],
             swiftSettings: strictSettings
         ),
         .testTarget(
@@ -52,6 +57,7 @@ let package = Package(
             dependencies: [
                 "AemiHMMMLCore",
                 .product(name: "AemiKernel", package: "aemi"),
+                .product(name: "AemiText", package: "aemi"),
                 .product(name: "AemiTestKit", package: "aemi")
             ],
             swiftSettings: strictSettings

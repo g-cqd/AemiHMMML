@@ -1,4 +1,5 @@
 import AemiHMMMLCore
+import AemiKernel
 import Testing
 
 @testable import AemiTOML

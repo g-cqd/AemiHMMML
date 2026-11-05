@@ -10,7 +10,7 @@ enum TOMLDestination {
 extension TOMLParser {
     /// `table`'s member under `part`; and the key's hash when the table is large enough to be indexed, which
     /// ``makeNode(_:origin:parent:key:start:)`` reuses.
-    func child(of table: Int32, _ part: TOMLKeyPart) -> (node: Int32?, hash: Int?) {
+    func child(of table: Int32, _ part: TOMLKeyPart) -> (node: Int32?, hash: UInt64?) {
         let key = bytes(of: part)
         guard nodes[Int(table)].count > TOMLKeyIndex.smallTable else {
             return (TOMLKeyIndex.scan(table: table, key: key, nodes: nodes, source: source, arena: keyArena), nil)
@@ -30,7 +30,7 @@ extension TOMLParser {
         _ kind: TOMLKind,
         origin: TOMLOrigin,
         parent: Int32,
-        key: (part: TOMLKeyPart, hash: Int?)?,
+        key: (part: TOMLKeyPart, hash: UInt64?)?,
         start: Int
     ) throws(Diagnostic) -> Int32 {
         let depth = nodes[Int(parent)].depth + 1
@@ -67,7 +67,7 @@ extension TOMLParser {
 
     /// Adds a table's new member to the hash index once the table has outgrown a linear scan; the member that makes it outgrow it
     /// brings its siblings in with it.
-    private mutating func indexMember(_ id: Int32, of parent: Int32, hash: Int?) {
+    private mutating func indexMember(_ id: Int32, of parent: Int32, hash: UInt64?) {
         let count = nodes[Int(parent)].count
         guard count > TOMLKeyIndex.smallTable else { return }
         if count == TOMLKeyIndex.smallTable + 1 {
@@ -177,7 +177,7 @@ extension TOMLParser {
         var parent: Int32
         var key: TOMLKeyPart
         var found: Int32?
-        var hash: Int?
+        var hash: UInt64?
     }
 
     /// Throws `message` at `key` unless `node` is of `kind` and `origin`.

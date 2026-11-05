@@ -1,4 +1,6 @@
 internal import AemiHMMMLCore
+internal import AemiKernel
+internal import AemiKernels
 
 /// Reads a TOML document into a flat node table (ADR-0003), one statement per line, iteratively (ADR-0004).
 struct TOMLParser {
@@ -23,7 +25,7 @@ struct TOMLParser {
     var scratch: [UInt8] = []
 
     /// The C0 controls other than tab, LF and CR, and DEL: forbidden everywhere in TOML (ADR-0010).
-    static let forbiddenControls: ByteScan.ByteSet? = ByteScan.ByteSet(
+    static let forbiddenControls: AemiKernels.ByteSet? = AemiKernels.ByteSet(
         (0 ..< 0x20).filter { $0 != 0x09 && $0 != 0x0A && $0 != 0x0D }.map { UInt8($0) } + [0x7F]
     )
 
@@ -57,7 +59,7 @@ struct TOMLParser {
             )
             return
         }
-        if let invalid = ByteScan.firstInvalidUTF8(source) {
+        if let invalid = ByteScan.firstInvalidUTF8(in: source) {
             try diagnostics.report(Diagnostic(.invalidUTF8, at: invalid ..< invalid + 1, "the bytes are not UTF-8"))
         }
         if let controls = Self.forbiddenControls {

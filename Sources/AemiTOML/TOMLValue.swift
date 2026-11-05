@@ -1,4 +1,5 @@
 internal import AemiHMMMLCore
+public import AemiKernel
 
 /// One value of a ``TOMLDocument``: a view, cheap to copy, valid as long as any copy of the document's storage lives.
 public struct TOMLValue: Sendable {
@@ -94,7 +95,7 @@ public struct TOMLValue: Sendable {
     public var dateTime: TOMLDateTime? {
         switch node.kind {
             case .offsetDateTime, .localDateTime, .localDate, .localTime:
-                TOMLDateTime.parse(storage.source[sourceRange], version: storage.version)
+                TOMLDateTime(parsing: storage.source[sourceRange], syntax: .toml(storage.version))
             default: nil
         }
     }

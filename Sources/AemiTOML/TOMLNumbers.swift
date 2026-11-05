@@ -43,11 +43,27 @@ enum TOMLNumbers {
         if token.count > 2, token[start] == 0x30, let radix = radix(of: token[start + 1]) {
             return .integer(try prefixed(token.dropFirst(2), radix: radix, invalid: invalid, range: range))
         }
-        if token.contains(where: { $0 == 0x2E || $0 == 0x65 || $0 == 0x45 }) {
-            guard let value = float(token) else { throw invalid }
-            return .float(value)
+        // Only reached when the one-pass path declined, so the copy is off the hot path.
+        let bytes = Array(token)
+        guard let literal = DecimalScanner.scan(bytes, from: 0, separator: 0x5F), literal.end == bytes.count,
+            !literal.leadingZero
+        else { throw invalid }
+        guard literal.isInteger else { return .float(DecimalFloat.double(literal, in: bytes, separator: 0x5F)) }
+        guard let value = literal.integerValue else { throw overflowError(range) }
+        return .integer(value)
+    }
+
+    /// The decimal number at `start` in one pass: where it ends and its value, through aemi's ``DecimalScanner`` with `_` between
+    /// digits (ADR-0010). Nil when it is not a plain decimal TOML accepts (a leading zero, hexadecimal, a word, a date), when an
+    /// integer overflows, or when a byte that could continue a value follows it: the caller then reports precisely.
+    static func decimal(in source: [UInt8], at start: Int) -> (end: Int, number: Number)? {
+        guard let literal = DecimalScanner.scan(source, from: start, separator: 0x5F), !literal.leadingZero,
+            literal.end == source.count || !TOMLParser.isTokenByte(source[literal.end])
+        else { return nil }
+        guard literal.isInteger else {
+            return (literal.end, .float(DecimalFloat.double(literal, in: source, separator: 0x5F)))
         }
-        return .integer(try decimal(token, invalid: invalid, range: range))
+        return literal.integerValue.map { (literal.end, .integer($0)) }
     }
 
     private static func radix(of byte: UInt8) -> UInt64? {
@@ -102,25 +118,6 @@ enum TOMLNumbers {
         guard digits(body, radix: radix, magnitude: &magnitude, overflow: &overflow) else { throw invalid }
         guard !overflow, magnitude <= UInt64(Int64.max) else { throw overflowError(range) }
         return Int64(magnitude)
-    }
-
-    private static func decimal(_ token: ArraySlice<UInt8>, invalid: Diagnostic, range: Range<Int>) throws(Diagnostic)
-        -> Int64
-    {
-        var body = token
-        var negative = false
-        if let first = body.first, first == 0x2B || first == 0x2D {
-            negative = first == 0x2D
-            body = body.dropFirst()
-        }
-        // No leading zero: `0` alone, or a nonzero first digit.
-        if body.first == 0x30, body.count > 1 { throw invalid }
-        var magnitude: UInt64 = 0
-        var overflow = false
-        guard digits(body, radix: 10, magnitude: &magnitude, overflow: &overflow) else { throw invalid }
-        let limit = negative ? UInt64(Int64.max) + 1 : UInt64(Int64.max)
-        guard !overflow, magnitude <= limit else { throw overflowError(range) }
-        return negative ? (magnitude == limit ? .min : -Int64(magnitude)) : Int64(magnitude)
     }
 
     private static func overflowError(_ range: Range<Int>) -> Diagnostic {

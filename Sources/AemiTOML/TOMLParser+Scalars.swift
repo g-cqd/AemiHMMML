@@ -1,4 +1,5 @@
 internal import AemiHMMMLCore
+internal import AemiKernel
 
 /// Strings, booleans, numbers and dates: validated here, their values kept for lazy reading (ADR-0003).
 extension TOMLParser {
@@ -102,7 +103,7 @@ extension TOMLParser {
             default: break
         }
         if Self.isDateAhead(token) || Self.isTimeAhead(token) {
-            guard let value = TOMLDateTime.parse(token, version: options.version) else {
+            guard let value = TOMLDateTime(parsing: token, syntax: .toml(options.version)) else {
                 throw Diagnostic(.tomlInvalidDateTime, at: range, "not a valid date or time")
             }
             switch value.kind {
