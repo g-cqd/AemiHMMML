@@ -176,7 +176,7 @@ enum TOMLStrings {
         if let digits {
             var value: UInt32 = 0
             for offset in 0 ..< digits {
-                guard index + 2 + offset < source.count, let digit = hexValue(source[index + 2 + offset]) else {
+                guard index + 2 + offset < source.count, let digit = Hex.value(source[index + 2 + offset]) else {
                     throw Diagnostic(
                         .tomlInvalidEscape,
                         at: index ..< index + 2,
@@ -220,14 +220,5 @@ enum TOMLStrings {
         if source[index] == lineFeed { return index + 1 }
         if source[index] == carriageReturn, index + 1 < source.count, source[index + 1] == lineFeed { return index + 2 }
         return nil
-    }
-
-    static func hexValue(_ byte: UInt8) -> UInt8? {
-        switch byte {
-            case 0x30 ... 0x39: byte - 0x30
-            case 0x41 ... 0x46: byte - 0x41 + 10
-            case 0x61 ... 0x66: byte - 0x61 + 10
-            default: nil
-        }
     }
 }

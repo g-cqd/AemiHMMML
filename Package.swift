@@ -37,6 +37,7 @@ let package = Package(
     products: [
         .library(name: "AemiHMMMLCore", targets: ["AemiHMMMLCore"]),
         .library(name: "AemiTOML", targets: ["AemiTOML"]),
+        .library(name: "AemiYAML", targets: ["AemiYAML"]),
         .library(name: "AemiHMMML", targets: ["AemiHMMML"])
     ],
     dependencies: [aemiDependency, aemiJSONDependency, collectionsDependency],
@@ -57,6 +58,20 @@ let package = Package(
                 .product(name: "AemiKernel", package: "aemi"),
                 .product(name: "AemiKernels", package: "aemi")
             ],
+            swiftSettings: strictSettings
+        ),
+        .target(
+            name: "AemiYAML",
+            dependencies: [
+                "AemiHMMMLCore",
+                .product(name: "AemiKernel", package: "aemi"),
+                .product(name: "AemiKernels", package: "aemi")
+            ],
+            swiftSettings: strictSettings
+        ),
+        .testTarget(
+            name: "AemiYAMLTests",
+            dependencies: ["AemiYAML", "AemiHMMMLCore", .product(name: "AemiTestKit", package: "aemi")],
             swiftSettings: strictSettings
         ),
         // The umbrella: every format re-exported, with Foundation's `Date` and the projection to `JSONValue` (ADR-0011).

@@ -1,3 +1,4 @@
+import AemiYAML
 import Benchmark
 import Foundation
 import Yams
@@ -28,6 +29,27 @@ nonisolated(unsafe) let benchmarks = {
         maxDuration: .seconds(3)
     )
     let texts = corpus()
+    let sources = texts.map { Array($0.utf8) }
+    // Events only: scalars stay ranges in the source (ADR-0003).
+    Benchmark("yaml/events/corpus/AemiYAML") { benchmark in
+        for _ in benchmark.scaledIterations {
+            for source in sources {
+                guard var parser = try? YAMLParser(parsing: source) else { continue }
+                while let event = try? parser.next() { blackHole(event) }
+            }
+        }
+    }
+    // Events with every scalar's value decoded, as libyaml's events carry them.
+    Benchmark("yaml/events+values/corpus/AemiYAML") { benchmark in
+        for _ in benchmark.scaledIterations {
+            for source in sources {
+                guard var parser = try? YAMLParser(parsing: source) else { continue }
+                while let event = try? parser.next() {
+                    if case .scalar(let scalar) = event.kind { blackHole(parser.value(of: scalar)) }
+                }
+            }
+        }
+    }
     Benchmark("yaml/compose/corpus/Yams") { benchmark in
         for _ in benchmark.scaledIterations {
             for text in texts {

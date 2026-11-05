@@ -25,7 +25,9 @@ extension TOMLWriter.Output {
                 case 0x0C: bytes.append(contentsOf: [0x5C, 0x66])
                 case 0x0D: bytes.append(contentsOf: [0x5C, 0x72])
                 case 0x00 ..< 0x20, 0x7F:
-                    bytes.append(contentsOf: [0x5C, 0x75, 0x30, 0x30, hexDigit(byte >> 4), hexDigit(byte & 0x0F)])
+                    bytes.append(contentsOf: [
+                        0x5C, 0x75, 0x30, 0x30, Hex.upperDigit(byte >> 4), Hex.upperDigit(byte & 0x0F)
+                    ])
                 default: bytes.append(byte)
             }
         }
@@ -94,6 +96,4 @@ extension TOMLWriter.Output {
             default: false
         }
     }
-
-    private static func hexDigit(_ nibble: UInt8) -> UInt8 { nibble < 10 ? 0x30 + nibble : 0x41 + nibble - 10 }
 }

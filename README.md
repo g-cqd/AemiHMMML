@@ -7,14 +7,16 @@ speed: UTF-8 bytes in, a flat tape of offsets out, no copies, bounded in time an
 toml-test whole under the suite's own runner, decoder and encoder (every valid file to its JSON and back, every invalid file refused, both
 versions). Parsing takes fewer instructions per byte than TOMLDecoder on every benchmark file, reading every value two to three and a half
 times fewer, Codable decoding 1.9 times fewer; writing runs at 330 to 660 MB/s with a handful of allocations (ADR-0011). The
-`AemiHMMML` umbrella adds Foundation's `Date` and the projection to AemiJSON's `JSONValue`. YAML is next. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
+`AemiHMMML` umbrella adds Foundation's `Date` and the projection to AemiJSON's `JSONValue`. **YAML reads to events**: `AemiYAML`
+passes yaml-test-suite's 402 event cases and refuses its 95 error cases, at fewer instructions per byte than libyaml and libfyaml
+(ADR-0012). The composer, schemas and `YAMLDecoder` (phase 4) are next. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
 
 ## What it will be
 
 | Product | Format | Oracle |
 |---|---|---|
 | `AemiTOML` | TOML 1.0.0 and 1.1.0: documents, a canonical writer, `TOMLEncoder` and `TOMLDecoder` | [toml-test](https://github.com/toml-lang/toml-test) v2.2.0, decoder and encoder (266 valid, 519 invalid) |
-| `AemiYAML` | YAML 1.2.2: events, documents, emitter | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 95 errors) |
+| `AemiYAML` | YAML 1.2.2: events (done), documents, emitter | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 95 errors) |
 | `AemiFrontMatter` | Heads of Markdown and similar texts, for AemiMarkdown, AemiMermaid and ask | fixtures per rule (ADR-0009) |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 

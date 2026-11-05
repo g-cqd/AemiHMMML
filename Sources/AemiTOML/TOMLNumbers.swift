@@ -76,7 +76,7 @@ enum TOMLNumbers {
     }
 
     private static func digit(_ byte: UInt8, radix: UInt64) -> UInt64? {
-        guard let value = TOMLStrings.hexValue(byte).map(UInt64.init), value < radix else { return nil }
+        guard let value = Hex.value(byte).map(UInt64.init), value < radix else { return nil }
         return value
     }
 

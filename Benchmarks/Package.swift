@@ -36,6 +36,7 @@ let package = Package(
         .executableTarget(
             name: "YAMLBenchmarks",
             dependencies: [
+                .product(name: "AemiYAML", package: "AemiHMMML"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Benchmark", package: "benchmark")
             ],
