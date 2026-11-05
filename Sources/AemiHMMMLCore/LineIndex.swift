@@ -17,15 +17,18 @@ public struct LineIndex: Sendable, Hashable {
         self.source = source
         var starts = [0]
         var index = 0
+        // A kernel scan to each line ending (ADR-0010), not a loop over every byte.
         while index < source.count {
+            index = ByteScan.firstIndexOfAny(in: source, from: index, to: source.count, 0x0A, 0x0D, 0x0A, 0x0A, 0x0A)
+            guard index < source.count else { break }
             let byte = source[index]
             index += 1
             if byte == 0x0A {
                 starts.append(index)
-            } else if byte == 0x0D, index < source.count, source[index] == 0x0A {
+            } else if index < source.count, source[index] == 0x0A {
                 index += 1
                 starts.append(index)
-            } else if byte == 0x0D, breaks == .yaml {
+            } else if breaks == .yaml {
                 starts.append(index)
             }
         }

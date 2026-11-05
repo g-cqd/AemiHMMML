@@ -8,3 +8,11 @@ source range. Values are resolved lazily when read: a string is decoded only if 
 So reading two keys of a large document decodes two scalars; a writer can keep the source's styles; and a later concrete syntax layer (comments,
 blank lines) adds format-preserving edits (TOML like Rust's `toml_edit`, YAML like AemiMarkdown's editor) without a second parser.
 Consequence: a source is at most `TapeSlot.maxLow` bytes (4 GiB − 1), which `MarkupLimits.documentBytes` enforces.
+
+## Amendment (2026-11-05): TOML builds a linked node table
+
+TOML defines a table's members wherever its headers and dotted keys appear, so source order is not tree order, and a preorder tape could
+only be written after a second pass. AemiTOML keeps the tape's rules (flat arrays, offsets, no per-node heap allocation, lazy values) in
+a node table instead: each node links to its first, last and next sibling, and the document turns the links into one contiguous child
+list per container when the parse ends, so an array's element is found in constant time. Whether flattening to `TapeSlot`s pays for
+itself is a measurement for later; YAML, whose structure follows the source, writes a tape.

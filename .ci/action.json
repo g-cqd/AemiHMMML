@@ -1,14 +1,53 @@
 {
   "swift": {
-    "versions": ["6.4.1"],
-    "environment": { "AD_TYPECHECK_BUDGET_MS": "250" }
+    "versions": [
+      "6.4.1"
+    ],
+    "environment": {
+      "AD_TYPECHECK_BUDGET_MS": "250",
+      "AEMIHMMML_FIXTURES": "required"
+    }
   },
   "quality": {
-    "paths": ["Sources", "Tests"],
+    "paths": [
+      "Sources",
+      "Tests"
+    ],
     "discipline": {
-      "shipped": ["Sources"],
+      "shipped": [
+        "Sources"
+      ],
       "forceUnwrap": true,
-      "rules": ["strtod", "inline-prng", "untyped-throws", "wall-clock"]
+      "rules": [
+        "strtod",
+        "inline-prng",
+        "untyped-throws",
+        "wall-clock"
+      ]
     }
-  }
+  },
+  "commands": [
+    {
+      "id": "suites",
+      "title": "Fixtures · Conformance Suites",
+      "git": [
+        {
+          "git": "https://github.com/toml-lang/toml-test",
+          "commit": "ce08da1ddb075d1c7596d663c7fcba9a2ae02c5c",
+          "into": ".build/fixtures/toml-test"
+        },
+        {
+          "git": "https://github.com/yaml/yaml-test-suite",
+          "commit": "6ad3d2c62885d82fc349026c136ef560838fdf3d",
+          "into": ".build/fixtures/yaml-test-suite"
+        }
+      ],
+      "before": [
+        "linux-debug",
+        "linux-release",
+        "linux-address",
+        "macos-debug"
+      ]
+    }
+  ]
 }

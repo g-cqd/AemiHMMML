@@ -24,13 +24,27 @@ let package = Package(
     name: "AemiHMMML",
     platforms: [.macOS(.v15), .iOS(.v18), .tvOS(.v18), .watchOS(.v11), .visionOS(.v2)],
     products: [
-        .library(name: "AemiHMMMLCore", targets: ["AemiHMMMLCore"])
+        .library(name: "AemiHMMMLCore", targets: ["AemiHMMMLCore"]),
+        .library(name: "AemiTOML", targets: ["AemiTOML"])
     ],
     dependencies: [aemiDependency],
     targets: [
         .target(
             name: "AemiHMMMLCore",
-            dependencies: [.product(name: "AemiKernel", package: "aemi")],
+            dependencies: [
+                .product(name: "AemiKernel", package: "aemi"),
+                .product(name: "AemiKernels", package: "aemi")
+            ],
+            swiftSettings: strictSettings
+        ),
+        .target(
+            name: "AemiTOML",
+            dependencies: ["AemiHMMMLCore", .product(name: "AemiKernel", package: "aemi")],
+            swiftSettings: strictSettings
+        ),
+        .testTarget(
+            name: "AemiTOMLTests",
+            dependencies: ["AemiTOML", "AemiHMMMLCore", .product(name: "AemiTestKit", package: "aemi")],
             swiftSettings: strictSettings
         ),
         .testTarget(
