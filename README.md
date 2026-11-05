@@ -4,8 +4,8 @@
 speed: UTF-8 bytes in, a flat tape of offsets out, no copies, bounded in time and memory, the same on macOS and Linux.
 
 **Status: TOML parses.** `AemiTOML` reads TOML 1.0 and 1.1 and passes toml-test whole (every valid file to its JSON, every invalid file
-refused, both versions, macOS and Linux). Writing TOML, Codable and speed are next: parsing alone is still slower than TOMLDecoder
-(`docs/diary/2026-11-05-02.md`). YAML has not started. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
+refused, both versions, macOS and Linux). Parsing takes fewer instructions per byte than TOMLDecoder on every benchmark file, and reading every
+value two to three and a half times fewer (`docs/diary/2026-11-05-02.md`). Writing TOML and Codable are next. YAML has not started. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
 
 ## What it will be
 

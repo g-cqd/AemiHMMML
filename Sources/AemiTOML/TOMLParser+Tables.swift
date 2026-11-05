@@ -8,8 +8,15 @@ enum TOMLDestination {
 
 /// TOML's rules for what may define or extend a table (TOML 1.1 §Keys, §Table, §Inline Table, §Array of Tables).
 extension TOMLParser {
-    func child(of table: Int32, _ part: TOMLKeyPart) -> Int32? {
-        index.find(table: table, key: bytes(of: part), nodes: nodes, source: source, arena: keyArena)
+    /// `table`'s member under `part`; and the key's hash when the table is large enough to be indexed, which
+    /// ``makeNode(_:origin:parent:key:start:)`` reuses.
+    func child(of table: Int32, _ part: TOMLKeyPart) -> (node: Int32?, hash: Int?) {
+        let key = bytes(of: part)
+        guard nodes[Int(table)].count > TOMLKeyIndex.smallTable else {
+            return (TOMLKeyIndex.scan(table: table, key: key, nodes: nodes, source: source, arena: keyArena), nil)
+        }
+        let hash = TOMLKeyIndex.hash(table: table, key: key)
+        return (index.find(hash: hash, table: table, key: key, nodes: nodes, source: source, arena: keyArena), hash)
     }
 
     /// Whether `node` lies in an inline table whose brace has closed.
@@ -23,7 +30,7 @@ extension TOMLParser {
         _ kind: TOMLKind,
         origin: TOMLOrigin,
         parent: Int32,
-        key: TOMLKeyPart?,
+        key: (part: TOMLKeyPart, hash: Int?)?,
         start: Int
     ) throws(Diagnostic) -> Int32 {
         let depth = nodes[Int(parent)].depth + 1
@@ -45,17 +52,35 @@ extension TOMLParser {
         )
         node.owner = origin == .inline ? id : (kind == .table ? nodes[Int(parent)].owner : -1)
         if let key {
-            node.keyStart = UInt32(key.start)
-            node.keyLength = UInt32(key.length)
-            node.keyInArena = key.inArena
-            node.bucketNext = index.insert(id, table: parent, key: bytes(of: key))
+            node.keyStart = UInt32(key.part.start)
+            node.keyLength = UInt32(key.part.length)
+            node.keyInArena = key.part.inArena
         }
         let last = nodes[Int(parent)].last
         if last >= 0 { nodes[Int(last)].next = id } else { nodes[Int(parent)].first = id }
         nodes[Int(parent)].last = id
         nodes[Int(parent)].count += 1
         nodes.append(node)
+        if let key { indexMember(id, of: parent, hash: key.hash) }
         return id
+    }
+
+    /// Adds a table's new member to the hash index once the table has outgrown a linear scan; the member that makes it outgrow it
+    /// brings its siblings in with it.
+    private mutating func indexMember(_ id: Int32, of parent: Int32, hash: Int?) {
+        let count = nodes[Int(parent)].count
+        guard count > TOMLKeyIndex.smallTable else { return }
+        if count == TOMLKeyIndex.smallTable + 1 {
+            var sibling = nodes[Int(parent)].first
+            while sibling >= 0 {
+                let key = TOMLKeyIndex.keyBytes(of: nodes[Int(sibling)], source: source, arena: keyArena)
+                index.insert(sibling, hash: TOMLKeyIndex.hash(table: parent, key: key))
+                sibling = nodes[Int(sibling)].next
+            }
+        } else {
+            let key = TOMLKeyIndex.keyBytes(of: nodes[Int(id)], source: source, arena: keyArena)
+            index.insert(id, hash: hash ?? TOMLKeyIndex.hash(table: parent, key: key))
+        }
     }
 
     /// A new value at `destination`; a key already there is an error.
@@ -67,10 +92,11 @@ extension TOMLParser {
     ) throws(Diagnostic) -> Int32 {
         switch destination {
             case .member(let table, let key):
-                if child(of: table, key) != nil {
+                let (found, hash) = child(of: table, key)
+                if found != nil {
                     throw Diagnostic(.tomlDuplicateKey, at: key.written, "this key is already defined in its table")
                 }
-                return try makeNode(kind, origin: origin, parent: table, key: key, start: start)
+                return try makeNode(kind, origin: origin, parent: table, key: (key, hash), start: start)
             case .element(let array):
                 return try makeNode(kind, origin: origin, parent: array, key: nil, start: start)
         }
@@ -81,8 +107,9 @@ extension TOMLParser {
     mutating func resolveDottedKey(from base: Int32) throws(Diagnostic) -> (table: Int32, key: TOMLKeyPart) {
         guard let last = parts.last else { throw unexpected("a key is missing") }
         var table = base
-        for part in parts.dropLast() {
-            if let found = child(of: table, part) {
+        for part in partStore[..<max(0, partCount - 1)] {
+            let (found, hash) = child(of: table, part)
+            if let found {
                 let node = nodes[Int(found)]
                 guard node.kind == .table, node.origin == .dotted, node.section == section, !isClosed(found) else {
                     throw Diagnostic(
@@ -95,7 +122,13 @@ extension TOMLParser {
                 }
                 table = found
             } else {
-                table = try makeNode(.table, origin: .dotted, parent: table, key: part, start: part.written.lowerBound)
+                table = try makeNode(
+                    .table,
+                    origin: .dotted,
+                    parent: table,
+                    key: (part, hash),
+                    start: part.written.lowerBound
+                )
             }
         }
         return (table, last)
@@ -104,8 +137,9 @@ extension TOMLParser {
     /// The table a header's key names, through the tables before its last part (created as implicit when missing).
     private mutating func headerParent() throws(Diagnostic) -> Int32 {
         var table: Int32 = 0
-        for part in parts.dropLast() {
-            if let found = child(of: table, part) {
+        for part in partStore[..<max(0, partCount - 1)] {
+            let (found, hash) = child(of: table, part)
+            if let found {
                 let node = nodes[Int(found)]
                 if node.kind == .table, node.origin != .inline, !isClosed(found) {
                     table = found
@@ -123,7 +157,7 @@ extension TOMLParser {
                     .table,
                     origin: .implicit,
                     parent: table,
-                    key: part,
+                    key: (part, hash),
                     start: part.written.lowerBound
                 )
             }
@@ -132,10 +166,18 @@ extension TOMLParser {
     }
 
     /// The table a header names: its parent, its last key part, and the node already there, if any.
-    private mutating func headerTarget() throws(Diagnostic) -> (parent: Int32, key: TOMLKeyPart, found: Int32?) {
+    private mutating func headerTarget() throws(Diagnostic) -> HeaderTarget {
         let parent = try headerParent()
         guard let last = parts.last else { throw unexpected("a header needs a key") }
-        return (parent, last, child(of: parent, last))
+        let (found, hash) = child(of: parent, last)
+        return HeaderTarget(parent: parent, key: last, found: found, hash: hash)
+    }
+
+    private struct HeaderTarget {
+        var parent: Int32
+        var key: TOMLKeyPart
+        var found: Int32?
+        var hash: Int?
     }
 
     /// Throws `message` at `key` unless `node` is of `kind` and `origin`.
@@ -153,32 +195,43 @@ extension TOMLParser {
 
     /// `[a.b]`: defines the table, once.
     mutating func defineTable(at start: Int) throws(Diagnostic) -> Int32 {
-        let (parent, last, found) = try headerTarget()
-        if let found {
-            try expect(found, .table, .implicit, key: last, "this table or key is already defined")
-            nodes[Int(found)].origin = .header
-            nodes[Int(found)].section = section
-            nodes[Int(found)].start = UInt32(start)
-            return found
+        let target = try headerTarget()
+        guard let found = target.found else {
+            return try makeNode(
+                .table,
+                origin: .header,
+                parent: target.parent,
+                key: (target.key, target.hash),
+                start: start
+            )
         }
-        return try makeNode(.table, origin: .header, parent: parent, key: last, start: start)
+        try expect(found, .table, .implicit, key: target.key, "this table or key is already defined")
+        nodes[Int(found)].origin = .header
+        nodes[Int(found)].section = section
+        nodes[Int(found)].start = UInt32(start)
+        return found
     }
 
     /// `[[a.b]]`: a new table at the end of the array of tables, which the first such header creates.
     mutating func appendArrayTable(at start: Int) throws(Diagnostic) -> Int32 {
-        let (parent, last, found) = try headerTarget()
-        let array: Int32
-        if let found {
+        let target = try headerTarget()
+        var array = target.found ?? -1
+        if array >= 0 {
             try expect(
-                found,
+                array,
                 .array,
                 .arrayOfTables,
-                key: last,
+                key: target.key,
                 "this key is already defined, not as an array of tables"
             )
-            array = found
         } else {
-            array = try makeNode(.array, origin: .arrayOfTables, parent: parent, key: last, start: start)
+            array = try makeNode(
+                .array,
+                origin: .arrayOfTables,
+                parent: target.parent,
+                key: (target.key, target.hash),
+                start: start
+            )
         }
         return try makeNode(.table, origin: .header, parent: array, key: nil, start: start)
     }

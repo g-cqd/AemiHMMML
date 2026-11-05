@@ -35,8 +35,6 @@ struct TOMLNode {
     var last: Int32 = -1
     var next: Int32 = -1
     var count: Int32 = 0
-    /// The next node whose (table, key) hash shares this node's bucket.
-    var bucketNext: Int32 = -1
     /// The header section that created it (dotted tables are extended only from their own).
     var section: Int32
     /// The inline table it lies in (itself for an inline table), or -1.

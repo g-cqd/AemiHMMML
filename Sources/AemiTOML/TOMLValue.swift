@@ -23,11 +23,23 @@ public struct TOMLValue: Sendable {
     /// A table's member, found in expected constant time.
     public subscript(key: String) -> TOMLValue? {
         guard node.kind == .table else { return nil }
-        let bytes = Array(key.utf8)
+        let bytes = Array(key.utf8)[...]
+        guard node.count > TOMLKeyIndex.smallTable else {
+            return
+                TOMLKeyIndex.scan(
+                    table: index,
+                    key: bytes,
+                    nodes: storage.nodes,
+                    source: storage.source,
+                    arena: storage.keyArena
+                )
+                .map { TOMLValue(storage: storage, index: $0) }
+        }
         return storage.index
             .find(
+                hash: TOMLKeyIndex.hash(table: index, key: bytes),
                 table: index,
-                key: bytes[...],
+                key: bytes,
                 nodes: storage.nodes,
                 source: storage.source,
                 arena: storage.keyArena

@@ -8,14 +8,17 @@ struct TOMLParser {
     var nodes: [TOMLNode] = []
     /// Decoded bytes of keys that held escapes; other keys are read in the source.
     var keyArena: [UInt8] = []
-    var index = TOMLKeyIndex()
+    var index: TOMLKeyIndex
     var diagnostics: Diagnostics
     /// The header sections seen; 0 is the root's.
     var section: Int32 = 0
     /// The table key/value lines add to.
     var current: Int32 = 0
     /// Scratch for the parts of one key, reused by every statement.
-    var parts: [TOMLKeyPart] = []
+    var partStore: [TOMLKeyPart] = []
+    var partCount = 0
+    /// The parts of the key just read.
+    var parts: ArraySlice<TOMLKeyPart> { partStore[..<partCount] }
     /// Scratch for decoding one escaped key.
     var scratch: [UInt8] = []
 
@@ -28,6 +31,7 @@ struct TOMLParser {
         self.source = source
         self.options = options
         diagnostics = Diagnostics(policy: options.policy, capacity: options.limits.diagnostics)
+        index = TOMLKeyIndex(capacity: source.count / 32)
         nodes.reserveCapacity(source.count / 16 + 4)
         nodes.append(
             TOMLNode(
@@ -146,7 +150,7 @@ struct TOMLParser {
     }
 
     mutating func skipWhitespace() {
-        while cursor < source.count, source[cursor] == 0x20 || source[cursor] == 0x09 { cursor += 1 }
+        cursor = ByteScan.firstIndexNotEither(0x20, 0x09, in: source, from: cursor)
     }
 
     /// Whitespace, line endings and comments, between the values of an array (or of a TOML 1.1 inline table).

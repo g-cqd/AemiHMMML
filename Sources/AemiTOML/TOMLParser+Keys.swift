@@ -11,10 +11,13 @@ struct TOMLKeyPart {
 extension TOMLParser {
     /// A dotted key into ``parts``, with the whitespace around it; the cursor stops at what follows.
     mutating func key() throws(Diagnostic) {
-        parts.removeAll(keepingCapacity: true)
+        // Reused without being emptied: emptying an array goes through `replaceSubrange` on every key.
+        partCount = 0
         repeat {
             skipWhitespace()
-            parts.append(try simpleKey())
+            let part = try simpleKey()
+            if partCount < partStore.count { partStore[partCount] = part } else { partStore.append(part) }
+            partCount += 1
             skipWhitespace()
         } while consume(0x2E)
     }
@@ -52,16 +55,15 @@ extension TOMLParser {
             keyArena.append(contentsOf: scratch)
             return TOMLKeyPart(start: arenaStart, length: scratch.count, inArena: true, written: start ..< cursor)
         }
-        while let byte = peek(), Self.isBareKeyByte(byte) { cursor += 1 }
+        while cursor < source.count, Self.isBareKeyByte(source[cursor]) { cursor += 1 }
         guard cursor > start else { throw unexpected("a key is missing") }
         return TOMLKeyPart(start: start, length: cursor - start, inArena: false, written: start ..< cursor)
     }
 
-    /// `A-Z a-z 0-9 _ -`.
+    /// `A-Z a-z 0-9 _ -`: one bit per ASCII byte in two words, where range comparisons cost a branch each.
+    @inline(__always)
     static func isBareKeyByte(_ byte: UInt8) -> Bool {
-        (byte >= 0x41 && byte <= 0x5A) || (byte >= 0x61 && byte <= 0x7A) || (byte >= 0x30 && byte <= 0x39)
-            || byte == 0x5F
-            || byte == 0x2D
+        ByteClass.contains(byte, low: 0x03FF_2000_0000_0000, high: 0x07FF_FFFE_87FF_FFFE)
     }
 
     /// The bytes of a key part.

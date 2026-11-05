@@ -7,6 +7,20 @@ enum TOMLNumbers {
     enum Number {
         case integer(Int64)
         case float(Double)
+
+        var kind: TOMLKind {
+            switch self {
+                case .integer: .integer
+                case .float: .float
+            }
+        }
+
+        var payload: UInt64 {
+            switch self {
+                case .integer(let value): UInt64(bitPattern: value)
+                case .float(let value): value.bitPattern
+            }
+        }
     }
 
     /// `inf`, `nan` and their signed forms.
@@ -17,6 +31,7 @@ enum TOMLNumbers {
             negative = first == 0x2D
             body = body.dropFirst()
         }
+        guard body.count == 3 else { return nil }
         if body.elementsEqual("inf".utf8) { return negative ? -.infinity : .infinity }
         if body.elementsEqual("nan".utf8) { return negative ? -Double.nan : .nan }
         return nil

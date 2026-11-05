@@ -19,6 +19,15 @@ extension TOMLParser {
             cursor = scanned.end
             return
         }
+        // A plain decimal number, the commonest bare value, in one pass; anything else takes the token path.
+        if let (end, number) = decimalFastPath(at: start) {
+            try checkSize(start ..< end)
+            let node = try attach(number.kind, origin: .staticArray, to: target, start: start)
+            nodes[Int(node)].end = UInt32(end)
+            nodes[Int(node)].payload = number.payload
+            cursor = end
+            return
+        }
         var end = tokenEnd(from: start)
         // A date and a time separated by one space are one value (`1979-05-27 07:32:00Z`).
         if end - start == 10, Self.isDateAhead(source[start ..< end]), end + 3 < source.count, source[end] == 0x20,
@@ -33,6 +42,16 @@ extension TOMLParser {
         nodes[Int(node)].end = UInt32(end)
         nodes[Int(node)].payload = payload
         cursor = end
+    }
+
+    /// A decimal integer or float at `start`, unless the bytes may be a date, a time, or a word.
+    private func decimalFastPath(at start: Int) -> (Int, TOMLNumbers.Number)? {
+        let first = source[start]
+        guard Self.isDigit(first) || first == 0x2B || first == 0x2D else { return nil }
+        // `YYYY-` and `HH:` are dates and times.
+        if start + 4 < source.count, source[start + 4] == 0x2D { return nil }
+        if start + 2 < source.count, source[start + 2] == 0x3A { return nil }
+        return TOMLNumbers.decimal(in: source, at: start)
     }
 
     private func checkSize(_ range: Range<Int>) throws(Diagnostic) {
@@ -52,10 +71,9 @@ extension TOMLParser {
     }
 
     /// The bytes a bare value can hold: letters, digits, `_ + - . :`.
+    @inline(__always)
     static func isTokenByte(_ byte: UInt8) -> Bool {
-        (byte >= 0x41 && byte <= 0x5A) || (byte >= 0x61 && byte <= 0x7A) || isDigit(byte) || byte == 0x5F
-            || byte == 0x2B
-            || byte == 0x2D || byte == 0x2E || byte == 0x3A
+        ByteClass.contains(byte, low: 0x07FF_6800_0000_0000, high: 0x07FF_FFFE_87FF_FFFE)
     }
 
     static func isDigit(_ byte: UInt8) -> Bool { byte >= 0x30 && byte <= 0x39 }
@@ -74,9 +92,15 @@ extension TOMLParser {
 
     private func classify(_ token: ArraySlice<UInt8>, at start: Int) throws(Diagnostic) -> (TOMLKind, UInt64) {
         let range = start ..< start + token.count
-        if token.elementsEqual("true".utf8) { return (.boolean, 1) }
-        if token.elementsEqual("false".utf8) { return (.boolean, 0) }
-        if let special = TOMLNumbers.special(token) { return (.float, special.bitPattern) }
+        // Words first, by their first byte: a number never starts with a letter, and comparing every number against four words
+        // was a fifth of a numeric file's parse.
+        switch token[token.startIndex] {
+            case 0x74 where token.elementsEqual("true".utf8): return (.boolean, 1)
+            case 0x66 where token.elementsEqual("false".utf8): return (.boolean, 0)
+            case 0x69, 0x6E, 0x2B, 0x2D:
+                if let special = TOMLNumbers.special(token) { return (.float, special.bitPattern) }
+            default: break
+        }
         if Self.isDateAhead(token) || Self.isTimeAhead(token) {
             guard let value = TOMLDateTime.parse(token, version: options.version) else {
                 throw Diagnostic(.tomlInvalidDateTime, at: range, "not a valid date or time")
