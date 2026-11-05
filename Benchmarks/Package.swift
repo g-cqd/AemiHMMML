@@ -17,7 +17,10 @@ let package = Package(
         .package(path: ".."),
         .package(url: "https://github.com/ordo-one/benchmark", from: "1.38.0"),
         // The pure-Swift TOML 1.1 reference, and the corpus it measures itself on (canada, twitter, github-events, as TOML).
-        .package(url: "https://github.com/dduan/TOMLDecoder.git", exact: "0.4.5")
+        .package(url: "https://github.com/dduan/TOMLDecoder.git", exact: "0.4.5"),
+        // libyaml through Swift: the YAML reference a Swift program reaches for (rapidyaml and libfyaml are measured by
+        // References/yaml_references.cpp, outside SwiftPM).
+        .package(url: "https://github.com/jpsim/Yams.git", exact: "6.2.2")
     ],
     targets: [
         .executableTarget(
@@ -28,6 +31,15 @@ let package = Package(
                 .product(name: "Benchmark", package: "benchmark")
             ],
             path: "Benchmarks/TOMLBenchmarks",
+            plugins: [.plugin(name: "BenchmarkPlugin", package: "benchmark")]
+        ),
+        .executableTarget(
+            name: "YAMLBenchmarks",
+            dependencies: [
+                .product(name: "Yams", package: "Yams"),
+                .product(name: "Benchmark", package: "benchmark")
+            ],
+            path: "Benchmarks/YAMLBenchmarks",
             plugins: [.plugin(name: "BenchmarkPlugin", package: "benchmark")]
         )
     ]

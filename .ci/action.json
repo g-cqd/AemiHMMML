@@ -29,7 +29,7 @@
   "commands": [
     {
       "id": "suites",
-      "title": "Fixtures · Conformance Suites",
+      "title": "Fixtures · Conformance Suites & Corpus",
       "git": [
         {
           "git": "https://github.com/toml-lang/toml-test",
@@ -40,6 +40,41 @@
           "git": "https://github.com/yaml/yaml-test-suite",
           "commit": "6ad3d2c62885d82fc349026c136ef560838fdf3d",
           "into": ".build/fixtures/yaml-test-suite"
+        },
+        {
+          "git": "https://github.com/actions/starter-workflows",
+          "commit": "e3c451d60f119b71caebf13c98ac45da6e15b4b7",
+          "into": ".build/fixtures/corpus/actions-starter-workflows"
+        },
+        {
+          "git": "https://github.com/docker/awesome-compose",
+          "commit": "30f4b7f6a6c3b0c0ecf4d4efb0de203c48d11562",
+          "into": ".build/fixtures/corpus/docker-awesome-compose"
+        },
+        {
+          "git": "https://github.com/kubernetes/examples",
+          "commit": "22934a040acbb0c0aa103023ccbd871507bf17f6",
+          "into": ".build/fixtures/corpus/kubernetes-examples"
+        },
+        {
+          "git": "https://github.com/OAI/OpenAPI-Specification",
+          "commit": "4f86429f134f7e48b6351563549b4502fc69de52",
+          "into": ".build/fixtures/corpus/OAI-OpenAPI-Specification"
+        },
+        {
+          "git": "https://github.com/BurntSushi/ripgrep",
+          "commit": "91f5d22ef48bde459d90a8c7dbeab416e97d0f2b",
+          "into": ".build/fixtures/corpus/BurntSushi-ripgrep"
+        },
+        {
+          "git": "https://github.com/rust-lang/rustlings",
+          "commit": "f7b9b3c5882a1a43275130b95142d94f847526f5",
+          "into": ".build/fixtures/corpus/rust-lang-rustlings"
+        },
+        {
+          "git": "https://github.com/python-poetry/poetry",
+          "commit": "6ecadf5b71309b1da4f00949cc349a79884cff8f",
+          "into": ".build/fixtures/corpus/python-poetry-poetry"
         }
       ],
       "before": [
