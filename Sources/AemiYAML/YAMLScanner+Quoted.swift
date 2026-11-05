@@ -41,6 +41,12 @@ extension YAMLScanner {
         }
         let textEnd = index
         index += 1
+        // Characters only quoted scalars may hold, inside this one.
+        while quotedOnlyNext < quotedOnly.count, quotedOnly[quotedOnlyNext] >= textStart,
+            quotedOnly[quotedOnlyNext] < textEnd
+        {
+            quotedOnlyNext += 1
+        }
         try appendScalar(
             double ? .doubleQuoted : .singleQuoted,
             text: textStart ..< textEnd,

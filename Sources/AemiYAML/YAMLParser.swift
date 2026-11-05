@@ -55,7 +55,28 @@ public struct YAMLParser: Sendable {
             }
         }
         scanner = YAMLScanner(source: source, limits: options.limits)
+        scanner.quotedOnly = Self.quotedOnlyCharacters(in: source)
         self.options = options
+    }
+
+    /// Where DEL, a C1 control (but NEL) or U+FFFE / U+FFFF stands: YAML admits them only inside quoted scalars (`nb-json`, §7.3),
+    /// so the scanner checks each falls inside one. Candidates come from a SIMD scan for their lead bytes.
+    static func quotedOnlyCharacters(in source: [UInt8]) -> [Int] {
+        guard let leads = AemiKernels.ByteSet([0x7F, 0xC2, 0xEF]) else { return [] }
+        var found: [Int] = []
+        var index = ByteScan.firstIndex(inSet: leads, in: source, from: 0, to: source.count)
+        while index < source.count {
+            let next = index + 1 < source.count ? source[index + 1] : 0
+            switch source[index] {
+                case 0x7F: found.append(index)
+                case 0xC2 where next >= 0x80 && next <= 0x9F && next != 0x85: found.append(index)
+                case 0xEF where next == 0xBF && index + 2 < source.count && source[index + 2] >= 0xBE:
+                    found.append(index)
+                default: break
+            }
+            index = ByteScan.firstIndex(inSet: leads, in: source, from: index + 1, to: source.count)
+        }
+        return found
     }
 
     public init(parsing text: String, options: YAMLOptions = YAMLOptions()) throws(Diagnostic) {

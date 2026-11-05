@@ -4,6 +4,13 @@ extension YAMLScanner {
     /// Scans one token, or what one character decides (the end of collections it dedents past included).
     mutating func fetchNextToken() throws(Diagnostic) {
         try scanToNextToken()
+        if quotedOnlyNext < quotedOnly.count, quotedOnly[quotedOnlyNext] < index {
+            throw error(
+                .yamlControlCharacter,
+                at: quotedOnly[quotedOnlyNext],
+                "DEL, a C1 control, U+FFFE or U+FFFF outside a quoted scalar"
+            )
+        }
         try staleSimpleKeys()
         unrollIndent(column(at: index))
         guard index < count else { return try fetchStreamEnd() }

@@ -27,8 +27,9 @@ events) is linear and well understood, but it reads YAML 1.1 and fails part of t
 - **No copies** (ADR-0003): events carry byte ranges for scalars, anchors and aliases; `value(of:)` folds and unescapes on demand,
   reading a one-line scalar with nothing to undo straight from the source. Tags are resolved at the event (the `%TAG` directives
   are gone by the time a consumer asks).
-- **Up front**: UTF-8 validity and the C0 controls (aemi's SIMD scans, as AemiTOML does). DEL, C1 controls and U+FFFE/U+FFFF
-  are not refused yet: YAML allows them inside quoted scalars and forbids them elsewhere, which needs a check per context.
+- **Up front**: UTF-8 validity and the C0 controls (aemi's SIMD scans, as AemiTOML does). DEL, C1 controls (but NEL) and
+  U+FFFE/U+FFFF, which YAML admits only inside quoted scalars (`nb-json`), are located by one SIMD scan for their lead bytes;
+  the scanner then requires each to fall inside a quoted scalar's text (see the amendment).
 - **Limits** (ADR-0004): depth over block and flow nesting, scalar bytes, documents, the implicit key's 1024 characters
   (`MarkupLimits.implicitKeyLength`). No recursion: the parser's states are a stack.
 - **Strict only** for now; the recovering policy (ADR-0001) arrives with phase 6.
@@ -53,3 +54,23 @@ events) is linear and well understood, but it reads YAML 1.1 and fails part of t
 | Yams 6.2.2 `compose_all` | 1,440 | 545 K |
 
 Ahead of both C event parsers; rapidyaml's figure is the plan's target, for SIMD work after the composer (phase 4).
+
+## Amendment (2026-11-05): phase 3 closed
+
+The rest of the plan's verification for this phase (section 5):
+
+- **Context-dependent characters.** DEL, C1 controls and U+FFFE/U+FFFF are refused outside quoted scalars (plain scalars,
+  comments, block scalars, between tokens) and read inside them; a test passes each through each context.
+- **libFuzzer** (`Tools/Fuzz`, a swift.org toolchain; the `fuzz` command runs nightly on Linux): `FuzzYAML` (events and values,
+  the number of events bounded by the input) and `FuzzTOML` (a recovering parse never throws; what parses strictly, written and
+  read back, is the same tree, and the writer's output is a fixed point), seeded with the suites and the corpus, under
+  AddressSanitizer. Ten minutes each on macOS: 5.3 million YAML inputs and 2.3 million TOML inputs, nothing found; a minute each
+  on Linux: 1.3 million and 0.4 million, nothing found.
+- **Formal models** (`docs/formal`, the `tla-models` command): the simple-key queue (a KEY is never inserted behind what the
+  parser has taken) and the block indentation stack (no collection closed and reopened at its own column), each against a
+  definition that does not use the algorithm's queue or stack, each with a `.buggy.cfg` control that TLC refutes, and each paired
+  with a Swift test that runs the real scanner over every input the model enumerates. Writing the simple-key oracle found a rule
+  the first model had left out (a key may start only where one is allowed), not a scanner bug.
+- **Linux**: the whole test suite passes in swift:6.4.1-noble.
+
+Mutation testing (litmus) is not done yet: it is opt-in and local in swift-ci, and is the next check to run on the scanner.

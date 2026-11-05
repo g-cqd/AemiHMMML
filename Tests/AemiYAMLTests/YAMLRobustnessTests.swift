@@ -112,4 +112,20 @@ struct YAMLRobustnessTests {
         let error = #expect(throws: Diagnostic.self) { _ = try YAMLParser(parsing: Array("a: \u{1}".utf8)) }
         #expect(error?.code == .yamlControlCharacter)
     }
+
+    @Test("DEL, C1 controls (but NEL) and U+FFFE / U+FFFF read only inside quoted scalars")
+    func quotedOnlyCharacters() {
+        for character in ["\u{7F}", "\u{80}", "\u{9F}", "\u{FFFE}", "\u{FFFF}"] {
+            #expect(
+                Self.read(Array("'a\(character)b'".utf8)) != nil,
+                "single-quoted \(character.unicodeScalars.first?.value ?? 0)"
+            )
+            #expect(Self.read(Array("\"a\(character)b\"".utf8)) != nil)
+            #expect(Self.read(Array("a\(character)b".utf8)) == nil, "plain")
+            #expect(Self.read(Array("a: b # \(character)".utf8)) == nil, "comment")
+            #expect(Self.read(Array("|\n a\(character)\n".utf8)) == nil, "block scalar")
+            #expect(Self.read(Array("'a' \(character)".utf8)) == nil, "after a quoted scalar")
+        }
+        #expect(Self.read(Array("a\u{85}b: \u{A0}\u{E000}\u{FFFD}".utf8)) != nil)
+    }
 }

@@ -89,6 +89,24 @@
       "title": "Conformance · toml-test Runner",
       "run": "T=\"$PWD/.build/toml-test\" && (cd .build/fixtures/toml-test && go build -o \"$T\" ./cmd/toml-test) && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && for v in 1.0 1.1; do \"$T\" test -toml \"$v\" -decoder \"$A decode $v\" -encoder \"$A encode\" -color never || exit 1; done",
       "after": "macos-debug"
+    },
+    {
+      "id": "tla-models",
+      "title": "Verification · TLA+ Models",
+      "tla": {
+        "models": "docs/formal"
+      },
+      "after": "macos-debug"
+    },
+    {
+      "id": "fuzz",
+      "title": "Verification · libFuzzer (YAML, TOML)",
+      "run": ".ci/swift-ci run suites && swift build -c release --package-path Tools/Fuzz --scratch-path .build/fuzz -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library && mkdir -p .build/fuzz-corpus/yaml .build/fuzz-corpus/toml && find .build/fixtures/yaml-test-suite .build/fixtures/corpus -type f \\( -name '*.yaml' -o -name '*.yml' \\) -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/yaml {} + && find .build/fixtures/toml-test/tests .build/fixtures/corpus -type f -name '*.toml' -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/toml {} + && .build/fuzz/release/FuzzYAML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/yaml && .build/fuzz/release/FuzzTOML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/toml",
+      "os": "linux",
+      "cadence": [
+        "nightly",
+        "dispatch"
+      ]
     }
   ]
 }

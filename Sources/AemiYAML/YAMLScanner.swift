@@ -35,6 +35,9 @@ struct YAMLScanner {
     /// A tab in the white space since the line's last token.
     var tabSeparated = false
     var indentationSpaces = 0
+    /// Offsets of characters allowed only inside quoted scalars, ascending, and the first not yet accounted for.
+    var quotedOnly: [Int] = []
+    var quotedOnlyNext = 0
 
     init(source: [UInt8], limits: MarkupLimits) {
         self.source = source
