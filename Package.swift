@@ -15,7 +15,7 @@ let strictSettings: [SwiftSetting] = [
 
 let aemiDependency: Package.Dependency = .package(
     url: "https://github.com/Aemi-Studio/aemi.git",
-    revision: "528804643f693104656a02449cfa59131556f616"
+    revision: "e30aad82377cbea62171cc722a88041e97021db2"
 )
 
 // The formats arrive one product at a time (docs/research/plan-2026-11-05.md, section 7): AemiTOML, AemiYAML, AemiFrontMatter, then the

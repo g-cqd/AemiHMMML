@@ -59,6 +59,50 @@ enum TaggedJSON {
         }
     }
 
+    /// The tree a tagged JSON value stands for: what toml-test gives an encoder. Nil when the JSON is not a tagged value.
+    static func tree(_ json: Any) -> TOMLTree? {
+        if let object = json as? [String: Any], let type = object["type"] as? String,
+            let value = object["value"] as? String,
+            object.count == 2
+        {
+            switch type {
+                case "string": return .string(value)
+                case "integer": return Int64(value).map(TOMLTree.integer)
+                case "bool": return value == "true" ? .boolean(true) : value == "false" ? .boolean(false) : nil
+                case "float":
+                    let unsigned = value.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "+"))
+                    if unsigned.hasSuffix("nan") { return .float(.nan) }
+                    return Double(unsigned).map(TOMLTree.float)
+                default:
+                    let kinds: [String: RFC3339DateTime.Kind] = [
+                        "datetime": .offsetDateTime, "datetime-local": .localDateTime, "date-local": .localDate,
+                        "time-local": .localTime
+                    ]
+                    guard let moment = TOMLDateTime(parsing: Array(value.utf8)[...], syntax: .toml11),
+                        kinds[type] == moment.kind
+                    else { return nil }
+                    return .dateTime(moment)
+            }
+        }
+        if let object = json as? [String: Any] {
+            var table = TOMLTable()
+            for key in object.keys.sorted() {
+                guard let child = object[key], let value = tree(child) else { return nil }
+                table[key] = value
+            }
+            return .table(table)
+        }
+        if let array = json as? [Any] {
+            var elements: [TOMLTree] = []
+            for child in array {
+                guard let value = tree(child) else { return nil }
+                elements.append(value)
+            }
+            return .array(elements)
+        }
+        return nil
+    }
+
     private static func describe(_ value: TOMLValue) -> String {
         switch value.kind {
             case .string: value.string.map(\.debugDescription) ?? "?"

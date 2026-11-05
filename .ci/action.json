@@ -48,6 +48,12 @@
         "linux-address",
         "macos-debug"
       ]
+    },
+    {
+      "id": "toml-test",
+      "title": "Conformance · toml-test Runner",
+      "run": "T=\"$PWD/.build/toml-test\" && (cd .build/fixtures/toml-test && go build -o \"$T\" ./cmd/toml-test) && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && for v in 1.0 1.1; do \"$T\" test -toml \"$v\" -decoder \"$A decode $v\" -encoder \"$A encode\" -color never || exit 1; done",
+      "after": "macos-debug"
     }
   ]
 }

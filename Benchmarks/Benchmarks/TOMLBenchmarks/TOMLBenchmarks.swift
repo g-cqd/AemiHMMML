@@ -1,11 +1,11 @@
 import AemiTOML
 import Benchmark
 import Foundation
-import TOMLDecoder
 
 // AemiTOML beside TOMLDecoder (pure Swift, TOML 1.1) on the same bytes. `parse` builds each library's document; `materialize`
-// reads every value (AemiTOML walks its views; TOMLDecoder converts to `[String: Any]`, its own full read). Throughput is per
-// document: divide the file's size by the time for MB/s.
+// reads every value (AemiTOML walks its views; TOMLDecoder converts to `[String: Any]`, its own full read); `decode` is Codable
+// into the same types; `write` and `encode` are AemiTOML's alone (TOMLDecoder does not write). Throughput is per document:
+// divide the file's size by the time for MB/s.
 
 /// TOMLDecoder's corpus from its checkout (the classic JSON benchmark files, as TOML), and a generated Cargo.lock, the shape of
 /// configuration TOML: many small tables, short strings, arrays of tables.
@@ -42,6 +42,20 @@ private func cargoLock(packages: Int) -> [UInt8] {
     return Array(text.utf8)
 }
 
+/// Cargo.lock's shape, for Codable.
+struct CargoLock: Codable {
+    struct Package: Codable {
+        var name: String
+        var version: String
+        var source: String?
+        var checksum: String?
+        var dependencies: [String]?
+    }
+
+    var version: Int
+    var package: [Package]
+}
+
 /// Every value of an AemiTOML document read: strings decoded, numbers and dates materialised.
 private func walk(_ value: TOMLValue) -> Int {
     switch value.kind {
@@ -67,7 +81,7 @@ nonisolated(unsafe) let benchmarks = {
         }
         Benchmark("toml/parse/\(name)/TOMLDecoder") { benchmark in
             for _ in benchmark.scaledIterations {
-                blackHole(try? TOMLTable(source: bytes))
+                blackHole(Reference.parse(bytes))
             }
         }
         Benchmark("toml/materialize/\(name)/AemiTOML") { benchmark in
@@ -77,7 +91,31 @@ nonisolated(unsafe) let benchmarks = {
         }
         Benchmark("toml/materialize/\(name)/TOMLDecoder") { benchmark in
             for _ in benchmark.scaledIterations {
-                if let table = try? TOMLTable(source: bytes) { blackHole(try? [String: Any](table)) }
+                blackHole(Reference.materialize(bytes))
+            }
+        }
+        guard case .table(let table)? = (try? TOMLDocument(parsing: bytes)).map({ TOMLTree($0.root) }) else { continue }
+        Benchmark("toml/write/\(name)/AemiTOML") { benchmark in
+            for _ in benchmark.scaledIterations {
+                blackHole(try? TOMLWriter().write(table))
+            }
+        }
+        guard name == "cargo-lock" else { continue }
+        Benchmark("toml/decode/\(name)/AemiTOML") { benchmark in
+            for _ in benchmark.scaledIterations {
+                blackHole(try? AemiTOML.TOMLDecoder().decode(CargoLock.self, from: bytes))
+            }
+        }
+        Benchmark("toml/decode/\(name)/TOMLDecoder") { benchmark in
+            for _ in benchmark.scaledIterations {
+                blackHole(Reference.decode(CargoLock.self, from: bytes))
+            }
+        }
+        if let lock = try? AemiTOML.TOMLDecoder().decode(CargoLock.self, from: bytes) {
+            Benchmark("toml/encode/\(name)/AemiTOML") { benchmark in
+                for _ in benchmark.scaledIterations {
+                    blackHole(try? TOMLEncoder().encode(lock))
+                }
             }
         }
     }
