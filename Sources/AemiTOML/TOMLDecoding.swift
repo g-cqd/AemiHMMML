@@ -1,3 +1,4 @@
+internal import AemiHMMMLCore
 internal import AemiKernel
 
 /// The `Decoder` a value sees: one view of the document.
@@ -31,6 +32,18 @@ struct TOMLDecoding: Decoder {
         if type == RFC3339DateTime.self {
             guard let moment = value.dateTime as? T else { throw mismatch(type, value, path, wanted: "a date or time") }
             return moment
+        }
+        if let convertible = type as? any DateTimeConvertible.Type {
+            guard let moment = value.dateTime else { throw mismatch(type, value, path, wanted: "a date or time") }
+            guard let result = convertible.init(dateTime: moment) as? T else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: path,
+                        debugDescription: "\(moment) cannot be a \(type) (a local date or time names no instant)"
+                    )
+                )
+            }
+            return result
         }
         if type == TOMLTree.self, let tree = TOMLTree(value) as? T { return tree }
         if type == TOMLTable.self {

@@ -13,7 +13,10 @@ public struct MarkupLimits: Sendable, Hashable {
     public var documentBytes: Int {
         didSet { documentBytes = Self.clamp(documentBytes, to: Self.addressableBytes) }
     }
-    /// Nested collections. The parsers keep explicit stacks, so the limit protects what consumers do with a tree, not the parser's stack.
+    /// Nested collections. The parsers and the walks over a document keep explicit stacks, so the limit protects what consumers do with
+    /// a tree, not the parser's stack. One thing it does bound: freeing an owned tree (`TOMLTree`, AemiJSON's `JSONValue`) nested this
+    /// deep, which Swift does recursively; that held at 1,000 levels on a test thread in a debug build and failed by 2,000 (ADR-0011),
+    /// so raise this past the default with care.
     public var depth: Int
     /// Bytes of one scalar after its escapes and folding are applied.
     public var scalarBytes: Int

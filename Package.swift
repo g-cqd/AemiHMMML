@@ -18,6 +18,17 @@ let aemiDependency: Package.Dependency = .package(
     revision: "e30aad82377cbea62171cc722a88041e97021db2"
 )
 
+// AemiJSON for the JSON projection (ADR-0008), in the umbrella only; swift-collections in AemiJSON's own range, for `JSONValue`'s
+// ordered objects.
+let aemiJSONDependency: Package.Dependency = .package(
+    url: "https://github.com/g-cqd/AemiJSON.git",
+    revision: "548ce9ed6d309dd4fb6e90722f375e854bab10ef"
+)
+let collectionsDependency: Package.Dependency = .package(
+    url: "https://github.com/apple/swift-collections.git",
+    "1.7.1" ..< "1.8.0"
+)
+
 // The formats arrive one product at a time (docs/research/plan-2026-11-05.md, section 7): AemiTOML, AemiYAML, AemiFrontMatter, then the
 // umbrella. The core holds what every one of them shares and is Foundation-free, like AemiJSONCore.
 let package = Package(
@@ -25,9 +36,10 @@ let package = Package(
     platforms: [.macOS(.v15), .iOS(.v18), .tvOS(.v18), .watchOS(.v11), .visionOS(.v2)],
     products: [
         .library(name: "AemiHMMMLCore", targets: ["AemiHMMMLCore"]),
-        .library(name: "AemiTOML", targets: ["AemiTOML"])
+        .library(name: "AemiTOML", targets: ["AemiTOML"]),
+        .library(name: "AemiHMMML", targets: ["AemiHMMML"])
     ],
-    dependencies: [aemiDependency],
+    dependencies: [aemiDependency, aemiJSONDependency, collectionsDependency],
     targets: [
         .target(
             name: "AemiHMMMLCore",
@@ -44,6 +56,27 @@ let package = Package(
                 "AemiHMMMLCore",
                 .product(name: "AemiKernel", package: "aemi"),
                 .product(name: "AemiKernels", package: "aemi")
+            ],
+            swiftSettings: strictSettings
+        ),
+        // The umbrella: every format re-exported, with Foundation's `Date` and the projection to `JSONValue` (ADR-0011).
+        .target(
+            name: "AemiHMMML",
+            dependencies: [
+                "AemiHMMMLCore",
+                "AemiTOML",
+                .product(name: "AemiKernel", package: "aemi"),
+                .product(name: "AemiJSONCore", package: "AemiJSON"),
+                .product(name: "OrderedCollections", package: "swift-collections")
+            ],
+            swiftSettings: strictSettings
+        ),
+        .testTarget(
+            name: "AemiHMMMLTests",
+            dependencies: [
+                "AemiHMMML",
+                .product(name: "AemiJSONCore", package: "AemiJSON"),
+                .product(name: "OrderedCollections", package: "swift-collections")
             ],
             swiftSettings: strictSettings
         ),

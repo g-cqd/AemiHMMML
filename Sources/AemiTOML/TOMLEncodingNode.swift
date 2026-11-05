@@ -1,3 +1,4 @@
+internal import AemiHMMMLCore
 internal import AemiKernel
 
 /// One value being encoded. Containers hand out child nodes and fill them later, so the nodes are references; ``tree()`` turns
@@ -78,6 +79,17 @@ final class TOMLEncodingNode {
     func encode(_ value: some Encodable, userInfo: [CodingUserInfoKey: any Sendable]) throws {
         switch value {
             case let moment as RFC3339DateTime: set(.dateTime(moment))
+            case let convertible as any DateTimeConvertible:
+                guard let moment = convertible.dateTime else {
+                    throw EncodingError.invalidValue(
+                        value,
+                        EncodingError.Context(
+                            codingPath: codingPath,
+                            debugDescription: "\(value) has no RFC 3339 date-time (years 0 to 9999)"
+                        )
+                    )
+                }
+                set(.dateTime(moment))
             case let tree as TOMLTree: set(tree)
             case let table as TOMLTable: set(.table(table))
             default: try value.encode(to: TOMLEncoding(node: self, userInfo: userInfo))

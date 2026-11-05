@@ -1,60 +1,27 @@
 extension TOMLTree {
-    /// A copy of a parsed value, every string decoded. The walk keeps its own stack (no recursion on input, AGENTS.md).
-    public init(_ value: TOMLValue) {
-        if let scalar = Self.scalar(value) {
-            self = scalar
-            return
-        }
-        var stack = [Frame(value)]
-        var result = TOMLTree.table(TOMLTable())
-        while !stack.isEmpty {
-            let top = stack.count - 1
-            if stack[top].next < stack[top].value.count {
-                let position = stack[top].next
-                stack[top].next += 1
-                guard let child = stack[top].value[position] else { continue }
-                if let scalar = Self.scalar(child) {
-                    stack[top].add(scalar, from: child)
-                } else {
-                    stack.append(Frame(child))
-                }
-            } else {
-                let done = stack.removeLast()
-                if stack.isEmpty {
-                    result = done.tree
-                } else {
-                    stack[stack.count - 1].add(done.tree, from: done.value)
-                }
-            }
-        }
-        self = result
-    }
+    /// A copy of a parsed value, every string decoded, built without recursion (``TOMLValue/fold(_:)``).
+    public init(_ value: TOMLValue) { self = value.fold(Copy.self) }
 
-    /// A container being copied: its view, the next member to visit, and what is copied so far.
-    private struct Frame {
-        let value: TOMLValue
-        var next = 0
-        var table = TOMLTable()
-        var array: [TOMLTree] = []
+    /// The copy, one container at a time.
+    private struct Copy: TOMLFolding {
+        private var table: TOMLTable?
+        private var array: [TOMLTree] = []
 
-        init(_ value: TOMLValue) {
-            self.value = value
-            if value.kind == .array { array.reserveCapacity(value.count) }
+        init(container value: TOMLValue) {
+            if value.kind == .table { table = TOMLTable() } else { array.reserveCapacity(value.count) }
         }
 
-        mutating func add(_ tree: TOMLTree, from child: TOMLValue) {
-            if value.kind == .table {
-                table[child.key ?? ""] = tree
-            } else {
-                array.append(tree)
-            }
+        mutating func add(_ member: TOMLTree, key: String?) {
+            if table != nil { table?[key ?? ""] = member } else { array.append(member) }
         }
 
-        var tree: TOMLTree { value.kind == .table ? .table(table) : .array(array) }
+        var result: TOMLTree { table.map(TOMLTree.table) ?? .array(array) }
+
+        static func leaf(_ value: TOMLValue) -> TOMLTree? { TOMLTree.scalar(value) }
     }
 
     /// A scalar's copy, or nil for a table or an array.
-    private static func scalar(_ value: TOMLValue) -> TOMLTree? {
+    package static func scalar(_ value: TOMLValue) -> TOMLTree? {
         switch value.kind {
             case .table, .array: nil
             case .string: .string(value.string ?? "")
