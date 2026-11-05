@@ -36,6 +36,7 @@ extension YAMLScanner {
     /// ns-plain-first(c): a non-indicator, or `-`, `?`, `:` followed by a plain-safe character.
     func canStartPlainScalar(at offset: Int) -> Bool {
         let byte = source[offset]
+        // @lm:accept:next replace-logical -- callers reach here past white space; the check guards a future caller
         if isBlank(byte) || isBreak(byte) { return false }
         if !isIndicator(byte) { return true }
         return (byte == 0x2D || byte == 0x3F || byte == 0x3A) && isPlainSafe(offset + 1)

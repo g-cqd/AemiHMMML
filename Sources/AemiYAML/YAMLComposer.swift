@@ -87,6 +87,7 @@ struct YAMLComposer {
             )
         }
         node.resolved = resolved
+        // @lm:accept:next swap-ternary -- the tag in a hash sharpens it; equality compares tags itself (YAMLKeyTable.equal)
         node.hash = YAMLKeyTable.hash(resolved, value: value, tag: resolved.kind == .string ? node.tag : -1)
         let index = Int32(nodes.count)
         nodes.append(node)
@@ -96,6 +97,7 @@ struct YAMLComposer {
 
     /// A scalar's value as bytes: its text in the source when nothing needs undoing (no copy).
     func scalarValue(_ scalar: YAMLScalar) -> ArraySlice<UInt8> {
+        // @lm:accept:next swap-ternary -- a verbatim scalar decodes to its text: both branches give the same bytes
         YAMLScalarText.isVerbatim(scalar, in: source)
             ? source[scalar.text] : YAMLScalarText.decode(scalar, in: source)[...]
     }

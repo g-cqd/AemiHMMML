@@ -105,8 +105,7 @@ public struct YAMLParser: Sendable {
                 scanner.skip()
                 state = .implicitDocumentStart
                 return YAMLEvent(.streamStart, range: token.start ..< token.end)
-            case .implicitDocumentStart: return try documentStart(implicitAllowed: true)
-            case .documentStart: return try documentStart(implicitAllowed: openForDirectives)
+            case .implicitDocumentStart, .documentStart: return try documentStart()
             case .documentContent: return try documentContent()
             case .documentEnd: return try documentEnd()
             case .blockNode: return try node(block: true, indentlessSequence: false)
@@ -139,7 +138,7 @@ public struct YAMLParser: Sendable {
 
     // MARK: - Documents
 
-    private mutating func documentStart(implicitAllowed: Bool) throws(Diagnostic) -> YAMLEvent {
+    private mutating func documentStart() throws(Diagnostic) -> YAMLEvent {
         var token = try scanner.peek()
         // Extra `...` lines between documents.
         while token.kind == .documentEnd {
@@ -158,7 +157,7 @@ public struct YAMLParser: Sendable {
         }
         tagHandles = [:]
         if token.kind != .documentStart, !isDirective(token.kind) {
-            guard implicitAllowed || openForDirectives else {
+            guard openForDirectives else {
                 throw error(token, .yamlSyntax, "a document after another must begin with '---'")
             }
             states.append(.documentEnd)

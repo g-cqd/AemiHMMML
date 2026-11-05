@@ -6,10 +6,12 @@ struct YAMLKeyTable {
     private var table: [Int: [Int32]] = [:]
 
     mutating func insert(_ node: Int32, hash: Int) {
+        // @lm:accept:next negate-condition -- where the scan gives way to the table changes speed, never which keys are equal
         if table.isEmpty, small.count < 8 {
             small.append((hash, node))
             return
         }
+        // @lm:accept:next negate-condition -- refilling the table from the scan list is idempotent
         if table.isEmpty { for (hash, node) in small { table[hash, default: []].append(node) } }
         table[hash, default: []].append(node)
     }

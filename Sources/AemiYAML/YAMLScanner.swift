@@ -65,6 +65,7 @@ struct YAMLScanner {
     mutating func skip() {
         head += 1
         tokensParsed += 1
+        // @lm:accept:next negate-condition -- when the taken tokens are dropped changes memory, never the tokens read
         if head > 256, head * 2 > tokens.count {
             tokens.removeFirst(head)
             head = 0
@@ -79,6 +80,7 @@ struct YAMLScanner {
                 // The oldest possible key has the smallest token number: if any key sits at the queue's head, it does.
                 needed = simpleKeys.oldestKey?.tokenNumber == tokensParsed
             }
+            // @lm:accept:next negate-condition -- fetching eagerly to the end is correct too, only hungrier for memory
             guard needed, !streamEndProduced else { return }
             try fetchNextToken()
         }

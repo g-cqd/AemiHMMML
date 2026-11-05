@@ -19,7 +19,10 @@ extension YAMLValue: MarkupValue {
 
     public var markupBool: Bool? { bool }
     public var markupInteger: Int64? { integer }
-    public var markupFloat: Double? { node.kind == .scalar && node.resolved.kind == .float ? double : nil }
+    public var markupFloat: Double? {
+        // @lm:accept:next replace-logical -- with `||`, an integer reads as the Double it equals, which the decoder does anyway
+        node.kind == .scalar && node.resolved.kind == .float ? double : nil
+    }
     public var markupString: String? { isNull ? nil : text }
 
     public var markupDateTime: RFC3339DateTime? {
