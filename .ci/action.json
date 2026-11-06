@@ -105,6 +105,12 @@
       "after": "macos-debug"
     },
     {
+      "id": "properties-differential",
+      "title": "Conformance · Java Properties against OpenJDK",
+      "run": "swift build -c release --package-path Tools/ConfigLinesAdapter --scratch-path .build/config-lines-adapter && \"$(swift build -c release --package-path Tools/ConfigLinesAdapter --scratch-path .build/config-lines-adapter --show-bin-path)/config-lines-adapter\" differential properties --inputs 100000",
+      "after": "macos-debug"
+    },
+    {
       "id": "toml-differential",
       "title": "Verification · toml++ Differential",
       "run": "(brew list tomlplusplus > /dev/null 2>&1 || brew install --quiet tomlplusplus) && clang++ -std=c++17 -O2 -w -I\"$(brew --prefix)/include\" Benchmarks/References/toml_tagged.cpp -o .build/tomlpp-decoder && swift test --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter-tests && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && \"$A\" differential .build/tomlpp-decoder --mutations 10 --known Tools/TOMLTestAdapter/Differential/known.txt .build/fixtures/toml-test/tests .build/fixtures/corpus Tools/TOMLTestAdapter/Differential/inputs",

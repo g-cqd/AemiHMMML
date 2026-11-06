@@ -1,5 +1,5 @@
 ---
-status: not-started
+status: in-progress
 blocked-by: []
 date: 2026-11-06
 ---
@@ -11,3 +11,6 @@ dialects (Python's `configparser`, Windows' profile files), and git-config (its 
 own oracle: the reference implementation run as a process, as toml++ is for TOML (ADR-0019).
 
 Bar: per format, the oracle's cases pass, it is fuzzed, and its ADR lists the dialect's choices.
+
+Java properties done (ADR-0023). `.env` waits for an oracle on the machine (no dotenv implementation or Docker here).
+
