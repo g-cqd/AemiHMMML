@@ -14,10 +14,19 @@ public struct TOMLOptions: Sendable, Hashable {
     public var version: TOMLVersion
     public var policy: ErrorPolicy
     public var limits: MarkupLimits
+    /// Whether the comments' places are kept (``TOMLDocument/comments``): a reader that finds settings written in comments (ask's
+    /// hints) asks; others pay nothing.
+    public var recordsComments: Bool
 
-    public init(version: TOMLVersion = .v1_1, policy: ErrorPolicy = .strict, limits: MarkupLimits = .default) {
+    public init(
+        version: TOMLVersion = .v1_1,
+        policy: ErrorPolicy = .strict,
+        limits: MarkupLimits = .default,
+        recordsComments: Bool = false
+    ) {
         self.version = version
         self.policy = policy
         self.limits = limits
+        self.recordsComments = recordsComments
     }
 }

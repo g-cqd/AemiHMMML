@@ -32,6 +32,8 @@ public struct YAMLParser: Sendable {
     let options: YAMLOptions
     /// What a recovering parse repaired; empty under ``ErrorPolicy/strict``, which throws instead.
     public internal(set) var diagnostics: Diagnostics
+    /// Each comment read so far, from its `#` to the end of its line, when ``YAMLOptions/recordsComments`` asks.
+    public var comments: [Range<Int>] { scanner.comments }
 
     /// The C0 controls other than tab, LF and CR: forbidden everywhere in a YAML stream, quoted scalars included (§5.1).
     static let forbiddenControls: AemiKernels.ByteSet? = AemiKernels.ByteSet(
@@ -78,6 +80,7 @@ public struct YAMLParser: Sendable {
         scanner = YAMLScanner(source: source, limits: options.limits)
         scanner.quotedOnly = Self.quotedOnlyCharacters(in: source)
         scanner.recovering = recovering
+        scanner.recordsComments = options.recordsComments
         self.options = options
         diagnostics = Diagnostics(policy: options.policy, capacity: options.limits.diagnostics)
     }

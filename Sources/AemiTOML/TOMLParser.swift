@@ -23,6 +23,8 @@ struct TOMLParser {
     var parts: ArraySlice<TOMLKeyPart> { partStore[..<partCount] }
     /// Scratch for decoding one escaped key.
     var scratch: [UInt8] = []
+    /// Each comment, from its `#` to the end of its line, when ``TOMLOptions/recordsComments`` asks.
+    var comments: [Range<Int>] = []
     /// A recovering parse replaced a value (ADR-0006: the last one stands); the replaced ones leave their tables at the end.
     var retired = false
 
@@ -116,7 +118,9 @@ struct TOMLParser {
 
     /// A comment, from its `#` to the line ending (not consumed).
     mutating func comment() throws(Diagnostic) {
+        let start = cursor
         cursor = ByteScan.firstIndexOfAny(in: source, from: cursor + 1, to: source.count, 0x0A, 0x0D, 0x0A, 0x0A, 0x0A)
+        if options.recordsComments { comments.append(start ..< cursor) }
         if cursor < source.count, source[cursor] == 0x0D, TOMLStrings.lineEnding(source, at: cursor) == nil {
             throw Diagnostic(.tomlControlCharacter, at: cursor ..< cursor + 1, "a carriage return without a line feed")
         }

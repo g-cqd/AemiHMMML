@@ -35,6 +35,8 @@ enum YAMLRecovery {
             } catch {
                 report(&diagnostics, error)
                 passes += 1
+                // A tab in indentation reads as a space (one byte for one: offsets hold), rather than losing the line.
+                if error.code == .yamlIndentation, untab(&work, at: error.range.lowerBound) { continue }
                 let scanner = trial.scanner
                 // An error inside a flow collection or a quoted scalar is repaired from where that began.
                 let flowStart =
@@ -113,6 +115,20 @@ enum YAMLRecovery {
             start = previous
         }
         return false
+    }
+
+    /// The tabs in the indentation of the line holding `offset`, as spaces; false if it had none.
+    private static func untab(_ work: inout [UInt8], at offset: Int) -> Bool {
+        var index = lineStart(work, min(offset, work.count))
+        var changed = false
+        while index < work.count, work[index] == 0x20 || work[index] == 0x09 {
+            if work[index] == 0x09 {
+                work[index] = 0x20
+                changed = true
+            }
+            index += 1
+        }
+        return changed
     }
 
     @discardableResult

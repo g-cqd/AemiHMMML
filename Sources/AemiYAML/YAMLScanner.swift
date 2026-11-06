@@ -45,6 +45,9 @@ struct YAMLScanner {
     /// error lies inside one.
     var outermostFlowStart = -1
     var openQuoteStart = -1
+    /// Where each comment is (from its `#` to the end of its line), when ``YAMLOptions/recordsComments`` asks.
+    var recordsComments = false
+    var comments: [Range<Int>] = []
     /// Offsets of characters allowed only inside quoted scalars, ascending, and the first not yet accounted for.
     var quotedOnly: [Int] = []
     var quotedOnlyNext = 0

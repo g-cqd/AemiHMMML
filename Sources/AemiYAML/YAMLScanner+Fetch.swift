@@ -63,7 +63,7 @@ extension YAMLScanner {
                         "a comment must be separated from what precedes it by white space"
                     )
                 }
-                while index < count, !isBreak(source[index]) { index += 1 }
+                skipComment()
             } else if isBreak(byte) {
                 consumeBreak()
                 if flowLevel == 0 { simpleKeyAllowed = true }
@@ -71,6 +71,13 @@ extension YAMLScanner {
                 return
             }
         }
+    }
+
+    /// Skips a comment, from its `#` to the end of its line, keeping its place when ``YAMLOptions/recordsComments`` asks.
+    mutating func skipComment() {
+        let start = index
+        while index < count, !isBreak(source[index]) { index += 1 }
+        if recordsComments { comments.append(start ..< index) }
     }
 
     /// Consumes one line break (CR LF counts once) and starts the next line.
@@ -103,6 +110,37 @@ extension YAMLScanner {
 
     /// A block indicator decides indentation, so no tab may precede it on its line: neither in the line's indentation nor between
     /// it and the indicator before it (`-\t-` is not a nested sequence).
+    /// Whether the flow collection at `start` closes on its own line and text other than a comment or a `:` follows it there.
+    func closesThenText(from start: Int) -> Bool {
+        var depth = 0
+        var probe = start
+        while probe < count, !isBreak(source[probe]) {
+            let byte = source[probe]
+            if byte == 0x22 || byte == 0x27 {
+                // A quoted scalar: its end, on this line, or no answer.
+                probe += 1
+                while probe < count, !isBreak(source[probe]), source[probe] != byte {
+                    if byte == 0x22, source[probe] == 0x5C { probe += 1 }
+                    probe += 1
+                }
+                guard probe < count, source[probe] == byte else { return false }
+            } else if byte == 0x5B || byte == 0x7B {
+                depth += 1
+            } else if byte == 0x5D || byte == 0x7D {
+                depth -= 1
+                if depth == 0 { break }
+            }
+            probe += 1
+        }
+        guard depth == 0, probe < count, !isBreak(source[probe]) else { return false }
+        probe += 1
+        let afterClose = probe
+        while probe < count, isBlank(source[probe]) { probe += 1 }
+        guard probe < count, !isBreak(source[probe]) else { return false }
+        if source[probe] == 0x23, probe > afterClose { return false }
+        return !(source[probe] == 0x3A && isBlankOrEnd(probe + 1))
+    }
+
     func checkNoTabIndentation() throws(Diagnostic) {
         guard flowLevel == 0 else { return }
         if (!tokenOnLine && tabInIndentation) || (tokenOnLine && tabSeparated) {
@@ -135,6 +173,14 @@ extension YAMLScanner {
     }
 
     mutating func fetchFlowCollectionStart(_ kind: YAMLToken.Kind, mapping: Bool) throws(Diagnostic) {
+        // Recovering: `[WIP] fix the thing` is a flow collection followed by text, which strict refuses; it reads as text.
+        if recovering, flowLevel == 0, closesThenText(from: index) {
+            recovered.append(
+                Diagnostic(.yamlSyntax, at: index ..< index + 1, "a flow collection followed by text, read as text")
+            )
+            try fetchPlainScalar()
+            return
+        }
         if flowLevel == 0 { outermostFlowStart = index }
         try saveSimpleKey()
         flowLevel += 1

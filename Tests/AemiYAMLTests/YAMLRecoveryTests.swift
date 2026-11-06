@@ -193,6 +193,42 @@ struct YAMLRecoveryTests {
         #expect(document.diagnostics.recorded.map(\.code) == [.limitExceeded])
     }
 
+    @Test(
+        "a flow collection followed by text on its line reads as text; one followed by a comment or a `:` stays a collection"
+    )
+    func flowThenText() throws {
+        let document = try Self.document("a: [WIP] fix the thing\nb: [x, y] # c\n[k]: v\nd: {e: 1} then: more\n")
+        #expect(document.root["a"]?.string == "[WIP] fix the thing")
+        #expect(document.root["b"]?.count == 2)
+        #expect(document.root.entries.contains { $0.key.kind == .sequence && $0.value.string == "v" })
+        #expect(document.root["d"]?.string == "{e: 1} then: more")
+        #expect(
+            document.diagnostics.recorded.map(\.code) == [.yamlSyntax, .yamlSyntax, .yamlImplicitKey, .yamlImplicitKey]
+        )
+    }
+
+    @Test("a tab in indentation reads as a space, so the line is kept")
+    func tabIndentation() throws {
+        let document = try Self.document("description: >\n\tfolded with a tab\nname: n\nlist:\n\t- a\n")
+        #expect(document.root["description"]?.string == "folded with a tab\n")
+        #expect(document.root["name"]?.string == "n")
+        #expect(document.root["list"]?[0]?.string == "a")
+        #expect(document.diagnostics.recorded.allSatisfy { $0.code == .yamlIndentation })
+    }
+
+    @Test("comments are kept where they are, when asked, and a scalar says how it was written")
+    func commentsAndStyles() throws {
+        let text = "a: 1 # one\n# two\nb: | # three\n  t # not a comment\nc: 'q'\n"
+        var options = YAMLOptions(recordsComments: true)
+        let document = try YAMLDocument(parsing: text, options: options)
+        let bytes = Array(text.utf8)
+        #expect(document.comments.map { String(decoding: bytes[$0], as: UTF8.self) } == ["# one", "# two", "# three"])
+        #expect(document.root["b"]?.scalarStyle == .literal && document.root["c"]?.scalarStyle == .singleQuoted)
+        #expect(document.root.scalarStyle == nil)
+        options.recordsComments = false
+        #expect(try YAMLDocument(parsing: text, options: options).comments.isEmpty)
+    }
+
     @Test("strict mode's diagnostics stay empty")
     func strictIsEmpty() throws {
         #expect(try YAMLDocument(parsing: "a: 1\n").diagnostics.isEmpty)

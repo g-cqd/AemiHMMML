@@ -38,6 +38,21 @@ struct TOMLRecoveryTests {
         #expect(headers.diagnostics.count == 2)
     }
 
+    @Test("comments are kept where they are, when asked, and a value says whether it was written inline")
+    func commentsAndInline() throws {
+        let text = "# one\na = [1, # two\n 2]\nt = {x = 1} # three\n[h]\ny = 'z' # four\n"
+        let document = try TOMLDocument(parsing: Array(text.utf8), options: TOMLOptions(recordsComments: true))
+        let bytes = Array(text.utf8)
+        #expect(
+            document.comments.map { String(decoding: bytes[$0], as: UTF8.self) } == [
+                "# one", "# two", "# three", "# four"
+            ]
+        )
+        #expect(document.root["a"]?.isInline == true && document.root["t"]?.isInline == true)
+        #expect(document.root["h"]?.isInline == false && document.root["h"]?["y"]?.isInline == false)
+        #expect(try TOMLDocument(parsing: Array(text.utf8)).comments.isEmpty)
+    }
+
     @Test("strict refuses a value written twice")
     func strict() {
         #expect(throws: Diagnostic.self) { try TOMLDocument(parsing: Array("a = 1\na = 2\n".utf8)) }

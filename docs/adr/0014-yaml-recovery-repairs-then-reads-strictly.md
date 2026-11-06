@@ -38,6 +38,13 @@ Two errors are recovered where they happen, because blanking would lose more tha
   or past the alias limits) reads as null. A value its tag refuses reads as a string. A stream of several documents read as one
   keeps the first. Each case is reported.
 
+Amended 2026-11-06, for ask's definition files (phase 6b), with two more repairs that keep more of what was written:
+
+- **A tab in indentation** reads as a space. The tab becomes a space in the working copy (one byte for one, so offsets hold), and
+  the line is parsed again instead of being blanked.
+- **A flow collection that closes on its line and is followed by text** (`description: [WIP] fix the thing`) reads as one plain
+  scalar, in the scanner. A collection followed by a comment or by `:` (a flow key) stays a collection.
+
 `YAMLParser.diagnostics` and `YAMLDocument.diagnostics` hold what was repaired. Under strict they are always empty.
 
 ## Consequences

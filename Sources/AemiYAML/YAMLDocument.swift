@@ -11,6 +11,8 @@ public struct YAMLDocument: Sendable {
     public let version: YAMLVersionDirective?
     /// What a recovering read repaired in the whole stream (ADR-0014); empty under ``ErrorPolicy/strict``, which throws instead.
     public var diagnostics: Diagnostics { storage.diagnostics }
+    /// Each comment of the whole stream, from its `#` to the end of its line, when ``YAMLOptions/recordsComments`` asked.
+    public var comments: [Range<Int>] { storage.comments }
 
     /// The one document of `source`: an empty stream is a document whose root is null; more than one is refused (read those with
     /// ``documents(parsing:options:)``), or under ``ErrorPolicy/recovering`` the first is kept, with a diagnostic.
@@ -30,7 +32,8 @@ public struct YAMLDocument: Sendable {
                 nodes: storage.nodes,
                 tags: storage.tags,
                 schema: storage.schema,
-                diagnostics: diagnostics
+                diagnostics: diagnostics,
+                comments: storage.comments
             )
         }
         guard let first = roots.first else {
@@ -40,7 +43,8 @@ public struct YAMLDocument: Sendable {
                 nodes: storage.nodes + [YAMLNode(kind: .scalar, start: 0, end: 0)],
                 tags: storage.tags,
                 schema: storage.schema,
-                diagnostics: storage.diagnostics
+                diagnostics: storage.diagnostics,
+                comments: storage.comments
             )
             self.init(storage: empty, root: Int32(empty.nodes.count - 1), version: nil)
             return
@@ -74,7 +78,8 @@ public struct YAMLDocument: Sendable {
             nodes: composer.nodes,
             tags: composer.tags,
             schema: options.schema,
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            comments: composer.parser.comments
         )
         return (storage, composer.documents.map { ($0.root, $0.version) })
     }
@@ -96,13 +101,22 @@ public struct YAMLDocument: Sendable {
         let tags: [String]
         let schema: YAMLSchema
         let diagnostics: Diagnostics
+        let comments: [Range<Int>]
 
-        init(source: [UInt8], nodes: [YAMLNode], tags: [String], schema: YAMLSchema, diagnostics: Diagnostics) {
+        init(
+            source: [UInt8],
+            nodes: [YAMLNode],
+            tags: [String],
+            schema: YAMLSchema,
+            diagnostics: Diagnostics,
+            comments: [Range<Int>] = []
+        ) {
             self.source = source
             self.nodes = nodes
             self.tags = tags
             self.schema = schema
             self.diagnostics = diagnostics
+            self.comments = comments
         }
     }
 }

@@ -7,11 +7,20 @@ public struct YAMLOptions: Sendable, Hashable {
     public var schema: YAMLSchema
     /// ``ErrorPolicy/strict`` throws the first violation; ``ErrorPolicy/recovering`` never throws, and reads what it can (ADR-0014).
     public var policy: ErrorPolicy
+    /// Whether the comments' places are kept (``YAMLParser/comments``, ``YAMLDocument/comments``): a reader that finds settings
+    /// written in comments (ask's hints) asks; others pay nothing.
+    public var recordsComments: Bool
 
-    public init(limits: MarkupLimits = .default, schema: YAMLSchema = .core, policy: ErrorPolicy = .strict) {
+    public init(
+        limits: MarkupLimits = .default,
+        schema: YAMLSchema = .core,
+        policy: ErrorPolicy = .strict,
+        recordsComments: Bool = false
+    ) {
         self.limits = limits
         self.schema = schema
         self.policy = policy
+        self.recordsComments = recordsComments
     }
 }
 

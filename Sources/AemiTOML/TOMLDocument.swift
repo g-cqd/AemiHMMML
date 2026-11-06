@@ -7,6 +7,8 @@ public struct TOMLDocument: Sendable {
     let storage: Storage
     /// Empty after a strict parse, which throws instead.
     public let diagnostics: Diagnostics
+    /// Each comment, from its `#` to the end of its line, when ``TOMLOptions/recordsComments`` asked.
+    public let comments: [Range<Int>]
 
     /// Parses `source`. In ``ErrorPolicy/strict`` the first violation is thrown; in ``ErrorPolicy/recovering`` nothing is.
     public init(parsing source: [UInt8], options: TOMLOptions = TOMLOptions()) throws(Diagnostic) {
@@ -14,6 +16,7 @@ public struct TOMLDocument: Sendable {
         try parser.run()
         storage = Storage(parser)
         diagnostics = parser.diagnostics
+        comments = parser.comments
     }
 
     public init(parsing text: String, options: TOMLOptions = TOMLOptions()) throws(Diagnostic) {

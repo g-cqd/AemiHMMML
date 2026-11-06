@@ -10,6 +10,12 @@ public struct TOMLValue: Sendable {
 
     public var kind: TOMLKind { node.kind }
 
+    /// Whether a table was written inline (`{…}`) or an array as a value (`[…]`), rather than made by headers (`[table]`,
+    /// `[[array]]`) or dotted keys; false for the rest.
+    public var isInline: Bool {
+        (node.kind == .table && node.origin == .inline) || (node.kind == .array && node.origin == .staticArray)
+    }
+
     /// The value's bytes in the source; a table defined by a header starts at its header.
     public var sourceRange: Range<Int> { Int(node.start) ..< Int(max(node.start, node.end)) }
 

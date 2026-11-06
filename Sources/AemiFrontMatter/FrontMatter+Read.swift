@@ -26,28 +26,32 @@ extension FrontMatter {
     /// Reads the head's content from `source`, the text it was located in, in its language: YAML 1.2.2 (core schema), TOML 1.1,
     /// or JSON (RFC 8259). Under ``ErrorPolicy/strict`` the first violation is thrown, and a head that was not closed is one.
     /// Under ``ErrorPolicy/recovering`` nothing is thrown (ADR-0001, ADR-0014). Offsets in values and diagnostics are offsets in
-    /// `source`: the head is read in place, the bytes before it blanked.
+    /// `source`: the head is read in place, the bytes before it blanked. `recordsComments` keeps the comments' places in the
+    /// document read (`YAMLDocument.comments`, `TOMLDocument.comments`).
     public func read(
         from source: [UInt8],
         policy: ErrorPolicy = .strict,
-        limits: MarkupLimits = .default
+        limits: MarkupLimits = .default,
+        recordsComments: Bool = false
     ) throws(Diagnostic) -> Reading {
-        try reading(source, policy: policy, limits: limits)
+        try reading(source, policy: policy, limits: limits, recordsComments: recordsComments)
     }
 
     /// ``read(from:policy:limits:)`` over a parser's buffer.
     public func read(
         from source: ContiguousArray<UInt8>,
         policy: ErrorPolicy = .strict,
-        limits: MarkupLimits = .default
+        limits: MarkupLimits = .default,
+        recordsComments: Bool = false
     ) throws(Diagnostic) -> Reading {
-        try reading(source, policy: policy, limits: limits)
+        try reading(source, policy: policy, limits: limits, recordsComments: recordsComments)
     }
 
     private func reading<Bytes: RandomAccessCollection<UInt8>>(
         _ source: Bytes,
         policy: ErrorPolicy,
-        limits: MarkupLimits
+        limits: MarkupLimits,
+        recordsComments: Bool
     ) throws(Diagnostic) -> Reading where Bytes.Index == Int {
         var diagnostics = Diagnostics(policy: policy, capacity: limits.diagnostics)
         if !isClosed {
@@ -66,11 +70,17 @@ extension FrontMatter {
         }
         switch format {
             case .yaml:
-                let document = try YAMLDocument(parsing: work, options: YAMLOptions(limits: limits, policy: policy))
+                let document = try YAMLDocument(
+                    parsing: work,
+                    options: YAMLOptions(limits: limits, policy: policy, recordsComments: recordsComments)
+                )
                 diagnostics.merge(document.diagnostics)
                 return Reading(value: .yaml(document), diagnostics: diagnostics)
             case .toml:
-                let document = try TOMLDocument(parsing: work, options: TOMLOptions(policy: policy, limits: limits))
+                let document = try TOMLDocument(
+                    parsing: work,
+                    options: TOMLOptions(policy: policy, limits: limits, recordsComments: recordsComments)
+                )
                 diagnostics.merge(document.diagnostics)
                 return Reading(value: .toml(document), diagnostics: diagnostics)
             case .json:

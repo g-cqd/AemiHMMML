@@ -116,6 +116,9 @@ public struct YAMLValue: Sendable {
     /// A string scalar's value.
     public var string: String? { node.resolved.kind == .string && node.kind == .scalar ? text : nil }
 
+    /// How a scalar was written (plain, quoted, literal `|`, folded `>`); nil for a collection.
+    public var scalarStyle: YAMLScalarStyle? { node.kind == .scalar ? node.scalar.style : nil }
+
     public var isNull: Bool { node.kind == .scalar && node.resolved.kind == .null }
 
     public var bool: Bool? { node.kind == .scalar && node.resolved.kind == .bool ? node.resolved.payload != 0 : nil }

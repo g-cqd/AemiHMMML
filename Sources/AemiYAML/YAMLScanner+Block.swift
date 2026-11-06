@@ -93,7 +93,7 @@ extension YAMLScanner {
             guard index > afterIndicators else {
                 throw error(.yamlSyntax, at: index, "a comment must be separated from what precedes it by white space")
             }
-            while index < count, !isBreak(source[index]) { index += 1 }
+            skipComment()
         }
         guard index < count else { return }
         guard isBreak(source[index]) else { throw error(.yamlSyntax, at: index, "a block scalar header ends its line") }
