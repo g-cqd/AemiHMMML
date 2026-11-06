@@ -72,12 +72,28 @@ struct ProjectionTests {
         let treeJSON = tree.json
         #expect(treeJSON == json)
         // The walks above keep their own stacks; freeing a value nested this deep does not (Swift releases nested enums
-        // recursively, about 1,000 levels on a test thread in a debug build), so these are kept rather than freed here. The depth
-        // limit (512 by default) bounds that recursion in real use; `limitTrees` frees one at the limit.
-        unsafe Self.kept.append(contentsOf: [json, tree, treeJSON] as [any Sendable])
+        // recursively, about 1,000 levels on a test thread in a debug build). The JSON values are taken apart one level at a
+        // time; the tree is kept. (Kept JSON values read as leaks to LeakSanitizer: an enum's case lives in its payload pointer's
+        // spare bits, so the scan does not see the pointer.) The depth limit (512 by default) bounds that recursion in real use;
+        // `limitTrees` frees one at the limit.
+        var pending = [consume json, consume treeJSON]
+        Self.release(&pending)
+        unsafe Self.kept.append(tree)
     }
 
-    nonisolated(unsafe) private static var kept: [any Sendable] = []
+    /// Frees JSON values one level at a time: a value popped holds the last reference to its container, whose members are on
+    /// the stack by then, so its release does not recurse.
+    private static func release(_ pending: inout [JSONValue]) {
+        while let value = pending.popLast() {
+            switch value {
+                case .array(let elements): pending.append(contentsOf: elements)
+                case .object(let object): pending.append(contentsOf: object.values)
+                default: break
+            }
+        }
+    }
+
+    nonisolated(unsafe) private static var kept: [TOMLTree] = []
 
     @Test("a tree and a projection at the default depth limit are built and freed on a test thread")
     func limitTrees() throws {
