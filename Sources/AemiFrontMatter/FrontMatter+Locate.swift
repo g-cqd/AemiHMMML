@@ -13,12 +13,44 @@ extension FrontMatter {
         options: FrontMatterOptions = FrontMatterOptions(),
         complete: Bool = true
     ) -> FrontMatterLocation {
-        FrontMatterLocator(source: source, options: options, complete: complete).locate()
+        var resume = FrontMatterLocator.Resume()
+        return FrontMatterLocator(source: source, options: options, complete: complete).locate(&resume)
+    }
+}
+
+/// Locates a head in a text that streams in, resuming where the last call stopped: over all calls, each byte of the head is looked at
+/// a bounded number of times (a call to ``FrontMatter/locate(in:options:complete:)`` per arriving line would be quadratic).
+public struct FrontMatterStream: Sendable {
+    public let options: FrontMatterOptions
+    /// The last answer; final once it is ``FrontMatterLocation/none`` or ``FrontMatterLocation/closed(_:)``.
+    public private(set) var location = FrontMatterLocation.undecided
+    private var resume = FrontMatterLocator.Resume()
+
+    public init(options: FrontMatterOptions = FrontMatterOptions()) {
+        self.options = options
+    }
+
+    /// What the start of `source` holds; `source` extends the text of the last call (same bytes, more after them).
+    public mutating func update(_ source: [UInt8], complete: Bool) -> FrontMatterLocation {
+        switch location {
+            case .none, .closed: return location
+            case .undecided, .open:
+                location = FrontMatterLocator(source: source, options: options, complete: complete).locate(&resume)
+                return location
+        }
     }
 }
 
 /// The rules of ADR-0015, one function each.
 struct FrontMatterLocator {
+    /// Where a streaming search stopped: the first line of the head not known not to close it, and the brace count of a JSON head.
+    struct Resume: Sendable, Hashable {
+        var line = 0
+        var jsonIndex = 0
+        var depth = 0
+        var inString = false
+    }
+
     let source: [UInt8]
     let options: FrontMatterOptions
     let complete: Bool
@@ -27,7 +59,7 @@ struct FrontMatterLocator {
     /// What a text that ends here, still streaming, may yet become; a complete one has no head.
     private var ended: FrontMatterLocation { complete ? .none : .undecided }
 
-    func locate() -> FrontMatterLocation {
+    func locate(_ resume: inout Resume) -> FrontMatterLocation {
         // A byte-order mark (Jekyll reads `bom|utf-8`; ask drops it), whole or, while streaming, begun.
         var start = 0
         if source.starts(with: [0xEF, 0xBB, 0xBF]) {
@@ -44,9 +76,9 @@ struct FrontMatterLocator {
         }
         if !options.indentedFences { fence = start }
         switch source[fence] {
-            case 0x2D: return fenced(.yaml, marker: 0x2D, start: start, fence: fence)
-            case 0x2B: return fenced(.toml, marker: 0x2B, start: start, fence: fence)
-            case 0x7B: return json(start: start, fence: fence)
+            case 0x2D: return fenced(.yaml, marker: 0x2D, start: start, fence: fence, &resume)
+            case 0x2B: return fenced(.toml, marker: 0x2B, start: start, fence: fence, &resume)
+            case 0x7B: return json(start: start, fence: fence, &resume)
             default: return .none
         }
     }
@@ -55,7 +87,13 @@ struct FrontMatterLocator {
 
     /// An opening fence is three markers alone on the first line, trailing blanks allowed, ended by a line break (Jekyll's
     /// `\A---\s*\n`, Hugo's lexer). The head ends at the first line that is the closing fence, indented as the opening one was.
-    private func fenced(_ format: FrontMatter.Format, marker: UInt8, start: Int, fence: Int) -> FrontMatterLocation {
+    private func fenced(
+        _ format: FrontMatter.Format,
+        marker: UInt8,
+        start: Int,
+        fence: Int,
+        _ resume: inout Resume
+    ) -> FrontMatterLocation {
         guard options.formats.contains(format) else { return .none }
         switch fenceLine(at: fence, marker: marker, alternative: nil) {
             case .no: return .none
@@ -67,7 +105,8 @@ struct FrontMatterLocator {
                     marker: marker,
                     start: start,
                     indent: start ..< fence,
-                    contentStart: contentStart
+                    contentStart: contentStart,
+                    &resume
                 )
         }
     }
@@ -77,30 +116,41 @@ struct FrontMatterLocator {
         marker: UInt8,
         start: Int,
         indent: Range<Int>,
-        contentStart: Int
+        contentStart: Int,
+        _ resume: inout Resume
     ) -> FrontMatterLocation {
         let alternative: UInt8? = format == .yaml ? 0x2E : nil  // `...` ends a YAML document (Jekyll, ask)
-        var line = contentStart
+        let open = FrontMatterLocation.open(format, start: start, contentStart: contentStart)
+        var line = max(contentStart, resume.line)
         while line < count {
             guard line - contentStart <= options.maximumHeadBytes else { return .none }
             if let fence = afterIndent(indent, at: line) {
                 switch fenceLine(at: fence, marker: marker, alternative: alternative) {
                     case .no: break
-                    case .unfinished: return .open(format, start: start, contentStart: contentStart)
+                    case .unfinished:
+                        resume.line = line
+                        return open
                     case .yes(let body):
                         // A closing fence that ends the text: final only once the text is complete.
                         guard let body = body ?? (complete ? count : nil) else {
-                            return .open(format, start: start, contentStart: contentStart)
+                            resume.line = line
+                            return open
                         }
                         return .closed(
                             FrontMatter(format: format, range: start ..< body, content: contentStart ..< line)
                         )
                 }
             }
-            line = nextLine(after: line)
+            // A last line without its ending (or with a CR that may get its LF) is looked at again when more arrives.
+            guard let next = completeLine(after: line) else {
+                resume.line = line
+                return count - contentStart <= options.maximumHeadBytes ? open : .none
+            }
+            line = next
         }
+        resume.line = line
         guard count - contentStart <= options.maximumHeadBytes else { return .none }
-        guard complete else { return .open(format, start: start, contentStart: contentStart) }
+        guard complete else { return open }
         guard options.unclosedEndsAtBlankLine else { return .none }
         let end = firstBlankLine(from: contentStart)
         return .closed(
@@ -149,15 +199,15 @@ struct FrontMatterLocator {
     /// A JSON head is an object at the start: `{`, then (after white space) a key's `"` or the closing `}`, which `{{<` and `{%`
     /// templates are not; it ends at its matching `}`, braces inside strings not counted (Hugo's lexer); one line break after it
     /// belongs to the head.
-    private func json(start: Int, fence: Int) -> FrontMatterLocation {
+    private func json(start: Int, fence: Int, _ resume: inout Resume) -> FrontMatterLocation {
         guard options.formats.contains(.json) else { return .none }
         var index = fence + 1
         while index < count, isJSONSpace(source[index]) { index += 1 }
         guard index < count else { return ended }
         guard source[index] == 0x22 || source[index] == 0x7D else { return .none }
-        var depth = 0
-        var inString = false
-        index = fence
+        var depth = resume.depth
+        var inString = resume.inString
+        index = max(fence, resume.jsonIndex)
         while index < count {
             guard index - fence <= options.maximumHeadBytes else { return .none }
             let byte = source[index]
@@ -177,6 +227,8 @@ struct FrontMatterLocator {
             }
             index += 1
         }
+        // The text ends inside the object: the search resumes here (past an escape's backslash, the byte it escapes is skipped).
+        resume = Resume(line: resume.line, jsonIndex: index, depth: depth, inString: inString)
         return complete ? .none : .open(.json, start: start, contentStart: fence)
     }
 
@@ -217,6 +269,16 @@ struct FrontMatterLocator {
             line = nextLine(after: line)
         }
         return count
+    }
+
+    /// The start of the line after `line`, if `line` has ended: by a line feed, or by a carriage return that is not the last byte
+    /// of a text still streaming in. Nil if it has not.
+    private func completeLine(after line: Int) -> Int? {
+        var index = line
+        while index < count, !isBreak(source[index]) { index += 1 }
+        guard index < count else { return complete ? count : nil }
+        guard complete || source[index] == 0x0A || index + 1 < count else { return nil }
+        return afterBreak(index)
     }
 
     private func nextLine(after line: Int) -> Int {

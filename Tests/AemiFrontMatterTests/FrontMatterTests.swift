@@ -209,6 +209,43 @@ struct FrontMatterTests {
         }
     }
 
+    @Test("a stream fed in pieces agrees with locating each prefix afresh, and with the whole once complete")
+    func stream() {
+        var generator = SeededRNG(seed: 0x5354_524D)
+        for fixture in Self.fixtures {
+            let bytes = Array(fixture.text.utf8)
+            for _ in 0 ..< 8 {
+                var stream = FrontMatterStream(options: fixture.options)
+                var end = 0
+                while end < bytes.count {
+                    end = min(bytes.count, end + Int.random(in: 1 ... 3, using: &generator))
+                    let prefix = Array(bytes[..<end])
+                    let fresh = FrontMatter.locate(in: prefix, options: fixture.options, complete: false)
+                    let streamed = stream.update(prefix, complete: false)
+                    #expect(streamed == fresh, "\(fixture.rule) at \(end)")
+                }
+                #expect(
+                    stream.update(bytes, complete: true) == FrontMatter.locate(in: bytes, options: fixture.options),
+                    "\(fixture.rule)"
+                )
+            }
+        }
+    }
+
+    @Test("a long head streamed line by line is searched once: each update resumes where the last stopped")
+    func streamResumes() {
+        var stream = FrontMatterStream()
+        var source = Array("---\n".utf8)
+        let line = Array("key: value\n".utf8)
+        for _ in 0 ..< 30_000 {
+            source.append(contentsOf: line)
+            #expect(stream.update(source, complete: false) == .open(.yaml, start: 0, contentStart: 4))
+        }
+        source.append(contentsOf: Array("---\nbody".utf8))
+        let head = FrontMatter(format: .yaml, range: 0 ..< source.count - 4, content: 4 ..< source.count - 8)
+        #expect(stream.update(source, complete: false) == .closed(head))
+    }
+
     @Test("a head that never closes stays open while it streams, within the bound, and is no head once complete")
     func openWhileStreaming() {
         let text = Array("---\ntitle: x\n".utf8)

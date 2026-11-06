@@ -37,7 +37,8 @@ on 2026-11-06:
 8. **Streaming**: `locate(in:complete: false)` reads a text still arriving. It is `undecided` while an opening fence could still
    form, `open` from the opening fence until the closing fence's line break (a `---` at the end of a prefix may still become
    `----`), and then final. Once it gives a final answer, a longer prefix gives the same one (a property test over every
-   fixture's every prefix).
+   fixture's every prefix). `FrontMatterStream` resumes where its last call stopped (the closing-fence search at its first undecided
+   line; a JSON head's brace count), so a caller that asks after every arriving line pays for each byte a bounded number of times.
 
 ## Reading
 
