@@ -4,40 +4,21 @@ internal import AemiKernel
 /// TOML's leaves for the shared encoder (ADR-0011): no null (a nil property is left out, a nil element refused), integers in 64
 /// signed bits, date-times and TOML's own trees as themselves.
 enum TOMLEncodingFormat: MarkupEncodingFormat {
-    static let null: TOMLTree? = nil
+    static let hasNull = false
 
-    static func leaf(_ value: Bool) -> TOMLTree { .boolean(value) }
-    static func leaf(_ value: String) -> TOMLTree { .string(value) }
-    static func leaf(_ value: Double) -> TOMLTree { .float(value) }
-
-    /// `value` as a TOML integer, or an error if it needs more than 64 signed bits.
-    static func integer(_ value: some BinaryInteger, at path: [any CodingKey]) throws -> TOMLTree {
-        guard let number = Int64(exactly: value) else {
-            throw EncodingError.invalidValue(
-                value,
-                EncodingError.Context(
-                    codingPath: path,
-                    debugDescription: "\(value) does not fit TOML's 64-bit signed integers"
-                )
-            )
+    static func own<T: Encodable>(_ value: T, at path: [any CodingKey]) throws -> MarkupLeaf? {
+        if T.self == TOMLTree.self, let tree = value as? TOMLTree { return .own(MarkupOwnValue(tree)) }
+        if T.self == TOMLTable.self, let table = value as? TOMLTable {
+            return .own(MarkupOwnValue(TOMLTree.table(table)))
         }
-        return .integer(number)
-    }
-
-    static func own(_ value: some Encodable, at path: [any CodingKey]) throws -> TOMLTree? {
-        if let moment = try dateTime(of: value, at: path) { return .dateTime(moment) }
-        switch value {
-            case let tree as TOMLTree: return tree
-            case let table as TOMLTable: return .table(table)
-            default: return nil
-        }
+        return try dateTime(of: value, at: path).map { .own(MarkupOwnValue(TOMLTree.dateTime($0))) }
     }
 
     /// The encoded value; nil when nothing (or nil) was encoded.
-    static func tree(_ node: MarkupEncodingNode<Self>) throws -> TOMLTree? {
+    static func tree(_ node: MarkupEncodingNode) throws -> TOMLTree? {
         switch node.shape {
             case .unset: return nil
-            case .leaf(let value): return value
+            case .leaf(let leaf): return try tree(leaf, at: node.codingPath)
             case .keyed:
                 var table = TOMLTable()
                 for (key, child) in zip(node.keys, node.children) {
@@ -60,6 +41,25 @@ enum TOMLEncodingFormat: MarkupEncodingFormat {
                     elements.append(value)
                 }
                 return .array(elements)
+        }
+    }
+
+    private static func tree(_ leaf: MarkupLeaf, at path: [any CodingKey]) throws -> TOMLTree? {
+        switch leaf {
+            case .null: return nil
+            case .bool(let flag): return .boolean(flag)
+            case .string(let text): return .string(text)
+            case .double(let number): return .float(number)
+            case .signed(let number): return .integer(number)
+            case .unsigned(let number):
+                throw EncodingError.invalidValue(
+                    number,
+                    EncodingError.Context(
+                        codingPath: path,
+                        debugDescription: "\(number) does not fit TOML's 64-bit signed integers"
+                    )
+                )
+            case .own(let box): return box.value as? TOMLTree
         }
     }
 }

@@ -1,26 +1,49 @@
 package import AemiKernel
 
-/// What a format makes of the values Codable hands an encoder (ADR-0011, ADR-0017): the shared encoder (``MarkupEncoding``) asks
-/// it for each leaf, so the Codable surface is written once for every format.
-package protocol MarkupEncodingFormat {
-    associatedtype Leaf
+/// A value Codable handed the shared encoder (ADR-0017), before a format writes it as its own.
+package enum MarkupLeaf {
+    case null
+    case bool(Bool)
+    case string(String)
+    case double(Double)
+    case signed(Int64)
+    /// An unsigned integer past `Int64.max`: a format with 64-bit signed integers refuses it.
+    case unsigned(UInt64)
+    /// A value the format writes as itself (a tree of its own): what its ``MarkupEncodingFormat/own(_:at:)`` gave, boxed so a
+    /// leaf stays small.
+    case own(MarkupOwnValue)
 
-    /// An explicit nil: the format's null, or nil to leave the value unset (TOML, which has none).
-    static var null: Leaf? { get }
-    static func leaf(_ value: Bool) -> Leaf
-    static func leaf(_ value: String) -> Leaf
-    static func leaf(_ value: Double) -> Leaf
-    static func integer(_ value: some BinaryInteger, at path: [any CodingKey]) throws -> Leaf
+    package static func integer(_ value: some BinaryInteger) -> MarkupLeaf {
+        // Codable's integers have at most 64 bits: one that is not an Int64 is a UInt64 past its range.
+        Int64(exactly: value).map(MarkupLeaf.signed) ?? .unsigned(UInt64(truncatingIfNeeded: value))
+    }
+}
+
+/// A format's own value, behind one pointer.
+package final class MarkupOwnValue: Sendable {
+    package let value: any Sendable
+
+    package init(_ value: any Sendable) { self.value = value }
+}
+
+/// What a format adds to the shared encoder (``MarkupEncoding``), which is written once and not generic: Codable reaches its
+/// containers through type-erased boxes, where generic code would run unspecialized (a first, generic version cost TOML's
+/// encoder 47 % more instructions).
+package protocol MarkupEncodingFormat {
+    /// An explicit nil is the format's null; without one (TOML) it leaves the value unset.
+    static var hasNull: Bool { get }
     /// A value the format writes as itself (a date-time, its own trees), or nil to encode it through its `encode(to:)`.
-    static func own(_ value: some Encodable, at path: [any CodingKey]) throws -> Leaf?
+    static func own(_ value: some Encodable, at path: [any CodingKey]) throws -> MarkupLeaf?
 }
 
 extension MarkupEncodingFormat {
     /// `value`'s date-time when it is one (``RFC3339DateTime``, or a ``DateTimeConvertible`` such as Foundation's `Date`), nil when
     /// it is not, an error when it is one RFC 3339 cannot write.
-    package static func dateTime(of value: some Encodable, at path: [any CodingKey]) throws -> RFC3339DateTime? {
+    package static func dateTime<T: Encodable>(of value: T, at path: [any CodingKey]) throws -> RFC3339DateTime? {
+        // Asked of every value a container holds: the type decides, before any cast of the value.
+        if T.self == RFC3339DateTime.self { return value as? RFC3339DateTime }
+        guard T.self is any DateTimeConvertible.Type else { return nil }
         switch value {
-            case let moment as RFC3339DateTime: return moment
             case let convertible as any DateTimeConvertible:
                 guard let moment = convertible.dateTime else {
                     throw EncodingError.invalidValue(
@@ -39,13 +62,13 @@ extension MarkupEncodingFormat {
 
 /// One value being encoded. Containers hand out child nodes and fill them later, so the nodes are references; a format turns the
 /// finished nodes into its own tree.
-package final class MarkupEncodingNode<Format: MarkupEncodingFormat> {
+package final class MarkupEncodingNode {
     package enum Shape {
         /// Nothing encoded yet, or nil in a format without null.
         case unset
         case keyed
         case unkeyed
-        case leaf(Format.Leaf)
+        case leaf(MarkupLeaf)
     }
 
     package private(set) var shape = Shape.unset
@@ -98,31 +121,35 @@ package final class MarkupEncodingNode<Format: MarkupEncodingFormat> {
         shape = .unkeyed
     }
 
-    func set(_ value: Format.Leaf) {
+    func set(_ value: MarkupLeaf) {
         reset()
         shape = .leaf(value)
     }
 
     /// An explicit nil: the format's null, or unset.
-    func setNull() {
+    func setNull(_ hasNull: Bool) {
         reset()
-        if let null = Format.null { shape = .leaf(null) }
+        if hasNull { shape = .leaf(.null) }
     }
 
     /// Back to nothing encoded.
     func reset() {
         shape = .unset
-        keys.removeAll()
-        children.removeAll()
-        positions.removeAll()
+        if !keys.isEmpty { keys.removeAll() }
+        if !children.isEmpty { children.removeAll() }
+        if !positions.isEmpty { positions.removeAll() }
     }
 
     /// Encodes `value` into this node: the format's own types as themselves, the rest through their `encode(to:)`.
-    package func encode(_ value: some Encodable, userInfo: [CodingUserInfoKey: any Sendable]) throws {
-        if let own = try Format.own(value, at: codingPath) {
+    package func encode(
+        _ value: some Encodable,
+        format: any MarkupEncodingFormat.Type,
+        userInfo: [CodingUserInfoKey: any Sendable]
+    ) throws {
+        if let own = try format.own(value, at: codingPath) {
             set(own)
         } else {
-            try value.encode(to: MarkupEncoding(node: self, userInfo: userInfo))
+            try value.encode(to: MarkupEncoding(node: self, format: format, userInfo: userInfo))
         }
     }
 }

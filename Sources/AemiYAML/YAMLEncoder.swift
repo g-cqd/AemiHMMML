@@ -16,8 +16,8 @@ public struct YAMLEncoder: Sendable {
 
     /// The YAML text of `value`, one document.
     public func encode(_ value: some Encodable) throws -> [UInt8] {
-        let root = MarkupEncodingNode<YAMLEncodingFormat>(codingPath: [])
-        try root.encode(value, userInfo: userInfo)
+        let root = MarkupEncodingNode(codingPath: [])
+        try root.encode(value, format: YAMLEncodingFormat.self, userInfo: userInfo)
         var emitter = YAMLEmitter(limits: limits)
         try emitter.documentStart()
         try Self.emit(root, into: &emitter)
@@ -31,8 +31,8 @@ public struct YAMLEncoder: Sendable {
     }
 
     /// The nodes as events, with a stack of their own.
-    private static func emit(_ root: MarkupEncodingNode<YAMLEncodingFormat>, into emitter: inout YAMLEmitter) throws {
-        var stack: [(node: MarkupEncodingNode<YAMLEncodingFormat>, next: Int)] = []
+    private static func emit(_ root: MarkupEncodingNode, into emitter: inout YAMLEmitter) throws {
+        var stack: [(node: MarkupEncodingNode, next: Int)] = []
         try start(root, &stack, &emitter)
         while let top = stack.indices.last {
             let (node, next) = stack[top]
@@ -48,8 +48,8 @@ public struct YAMLEncoder: Sendable {
     }
 
     private static func start(
-        _ node: MarkupEncodingNode<YAMLEncodingFormat>,
-        _ stack: inout [(node: MarkupEncodingNode<YAMLEncodingFormat>, next: Int)],
+        _ node: MarkupEncodingNode,
+        _ stack: inout [(node: MarkupEncodingNode, next: Int)],
         _ emitter: inout YAMLEmitter
     ) throws {
         switch node.shape {
@@ -64,11 +64,13 @@ public struct YAMLEncoder: Sendable {
         }
     }
 
-    private static func scalar(_ leaf: YAMLEncodingFormat.Leaf, _ emitter: inout YAMLEmitter) throws {
+    private static func scalar(_ leaf: MarkupLeaf, _ emitter: inout YAMLEmitter) throws {
         switch leaf {
-            case .null: try emitter.scalar("null")
+            case .null, .own: try emitter.scalar("null")
             case .bool(let flag): try emitter.scalar(flag ? "true" : "false")
-            case .number(let text): try emitter.scalar(text)
+            case .signed(let number): try emitter.scalar(String(number))
+            case .unsigned(let number): try emitter.scalar(String(number))
+            case .double(let number): try emitter.scalar(YAMLEncodingFormat.text(number))
             case .string(let text):
                 // Plain only if the core schema reads it back as a string; the emitter quotes what plain cannot hold.
                 let plain = YAMLResolver.resolve(tag: nil, style: .plain, value: Array(text.utf8)[...], schema: .core)
@@ -77,31 +79,19 @@ public struct YAMLEncoder: Sendable {
     }
 }
 
-/// YAML's leaves for the shared encoder.
+/// YAML's part of the shared encoder: nil is `null`, date-times are their RFC 3339 text.
 enum YAMLEncodingFormat: MarkupEncodingFormat {
-    enum Leaf {
-        case null
-        case bool(Bool)
-        /// A number as YAML writes it (`12`, `1.5`, `.inf`, `-.inf`, `.nan`).
-        case number(String)
-        case string(String)
+    static let hasNull = true
+
+    /// A double as YAML's core schema reads it back: `.inf`, `-.inf`, `.nan`, or Swift's shortest form, which reads back to the same
+    /// bits (`1.0`, `1e+100`, `5e-324`).
+    static func text(_ value: Double) -> String {
+        if value.isNaN { return ".nan" }
+        if value.isInfinite { return value < 0 ? "-.inf" : ".inf" }
+        return "\(value)"
     }
 
-    static let null: Leaf? = .null
-
-    static func leaf(_ value: Bool) -> Leaf { .bool(value) }
-    static func leaf(_ value: String) -> Leaf { .string(value) }
-
-    static func leaf(_ value: Double) -> Leaf {
-        if value.isNaN { return .number(".nan") }
-        if value.isInfinite { return .number(value < 0 ? "-.inf" : ".inf") }
-        // Swift's shortest form reads back to the same bits, and is a core-schema float (`1.0`, `1e+100`, `5e-324`).
-        return .number("\(value)")
-    }
-
-    static func integer(_ value: some BinaryInteger, at path: [any CodingKey]) throws -> Leaf { .number("\(value)") }
-
-    static func own(_ value: some Encodable, at path: [any CodingKey]) throws -> Leaf? {
+    static func own(_ value: some Encodable, at path: [any CodingKey]) throws -> MarkupLeaf? {
         try dateTime(of: value, at: path).map { .string($0.description) }
     }
 }

@@ -33,3 +33,16 @@ Status: decided and built, 2026-11-06 (phase 5 of the plan, second part).
 - Every suite document with an `in.json`, written from its composed form, composes to the same values.
 - Wide integers decode where they fit and are refused where they do not.
 - The TOML encoder's tests pass unchanged on the shared encoder.
+
+## Amendment, 2026-11-06: not generic
+
+The first version was generic over the format (`MarkupEncoding<Format>`). It cost TOML's encoder 47 % more instructions on the
+Cargo.lock benchmark: 256M against 174M for the encoder it replaced, which no one had measured. Codable reaches containers through
+type-erased boxes, so every call went through the conformance's witness table to generic code in the core, unspecialized.
+Making it `@inlinable` changed nothing (256M).
+
+The core encoder is now concrete. Leaves are a `MarkupLeaf` (null, bool, string, double, signed, unsigned, or a format's own
+value behind one pointer). A format adds only `hasNull` and `own(_:at:)`, reached through an existential metatype, and turns
+leaves into its tree afterwards. TOML's 64-bit range check moved there, with the node's coding path. `own` decides by the value's
+type before any cast. That brought it to 179M, 3 % above the encoder it replaced. Parse, decode, materialize and write are
+unchanged (19M, 215M, 44M, 31M).

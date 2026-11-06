@@ -1,10 +1,12 @@
 /// The `Encoder` a value sees, for any format (``MarkupEncodingFormat``): a node to fill. TOML's and YAML's encoders are this.
-struct MarkupEncoding<Format: MarkupEncodingFormat>: Encoder {
-    let node: MarkupEncodingNode<Format>
+struct MarkupEncoding: Encoder {
+    let node: MarkupEncodingNode
+    let format: any MarkupEncodingFormat.Type
     let sendableUserInfo: [CodingUserInfoKey: any Sendable]
 
-    init(node: MarkupEncodingNode<Format>, userInfo: [CodingUserInfoKey: any Sendable]) {
+    init(node: MarkupEncodingNode, format: any MarkupEncodingFormat.Type, userInfo: [CodingUserInfoKey: any Sendable]) {
         self.node = node
+        self.format = format
         sendableUserInfo = userInfo
     }
 
@@ -23,21 +25,21 @@ struct MarkupEncoding<Format: MarkupEncodingFormat>: Encoder {
 
     func singleValueContainer() -> any SingleValueEncodingContainer { Single(encoding: self) }
 
-    func encoder(for node: MarkupEncodingNode<Format>) -> MarkupEncoding {
-        MarkupEncoding(node: node, userInfo: sendableUserInfo)
+    func encoder(for node: MarkupEncodingNode) -> MarkupEncoding {
+        MarkupEncoding(node: node, format: format, userInfo: sendableUserInfo)
     }
 
     struct Keyed<Key: CodingKey>: KeyedEncodingContainerProtocol {
         let encoding: MarkupEncoding
         var codingPath: [any CodingKey] { encoding.node.codingPath }
 
-        private func member(_ key: Key) -> MarkupEncodingNode<Format> { encoding.node.member(key) }
+        private func member(_ key: Key) -> MarkupEncodingNode { encoding.node.member(key) }
 
-        mutating func encodeNil(forKey key: Key) throws { member(key).setNull() }
-        mutating func encode(_ value: Bool, forKey key: Key) throws { member(key).set(Format.leaf(value)) }
-        mutating func encode(_ value: String, forKey key: Key) throws { member(key).set(Format.leaf(value)) }
-        mutating func encode(_ value: Double, forKey key: Key) throws { member(key).set(Format.leaf(value)) }
-        mutating func encode(_ value: Float, forKey key: Key) throws { member(key).set(Format.leaf(Double(value))) }
+        mutating func encodeNil(forKey key: Key) throws { member(key).setNull(encoding.format.hasNull) }
+        mutating func encode(_ value: Bool, forKey key: Key) throws { member(key).set(.bool(value)) }
+        mutating func encode(_ value: String, forKey key: Key) throws { member(key).set(.string(value)) }
+        mutating func encode(_ value: Double, forKey key: Key) throws { member(key).set(.double(value)) }
+        mutating func encode(_ value: Float, forKey key: Key) throws { member(key).set(.double(Double(value))) }
         mutating func encode(_ value: Int, forKey key: Key) throws { try integer(value, key) }
         mutating func encode(_ value: Int8, forKey key: Key) throws { try integer(value, key) }
         mutating func encode(_ value: Int16, forKey key: Key) throws { try integer(value, key) }
@@ -50,12 +52,12 @@ struct MarkupEncoding<Format: MarkupEncodingFormat>: Encoder {
         mutating func encode(_ value: UInt64, forKey key: Key) throws { try integer(value, key) }
 
         mutating func encode(_ value: some Encodable, forKey key: Key) throws {
-            try member(key).encode(value, userInfo: encoding.sendableUserInfo)
+            try member(key).encode(value, format: encoding.format, userInfo: encoding.sendableUserInfo)
         }
 
         private func integer(_ value: some BinaryInteger, _ key: Key) throws {
             let child = member(key)
-            child.set(try Format.integer(value, at: child.codingPath))
+            child.set(.integer(value))
         }
 
         mutating func nestedContainer<NestedKey: CodingKey>(
