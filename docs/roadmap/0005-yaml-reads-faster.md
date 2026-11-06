@@ -29,7 +29,9 @@ First pass (profiled with `sample` on a release driver, measured in instructions
   option set now: events on the corpus 130M to 91M instructions (−30 %), composition 214M to 175M. In the scanner, the key token
   goes in by hand instead of through `Array.insert`, and the simple keys' line list keeps its length (−3.7 % on events).
 - Tried and reverted: feeding the key hasher eight bytes at a time; finding a plain run's end with AemiKernels' byte-set scan
-  (+1.2 %: the runs are too short for it). `Hasher` already buffers bytes; the number did not move.
+  (+1.2 %: the runs are too short for it); skipping a mapping's keys by their hash in `YAMLValue[key]` (−0.2 %: hashing the wanted
+  key costs what the skipped comparisons saved). What decoding costs above composition now is mostly Codable's own machinery
+  (retains, container boxes, generic metadata at run time), about 147M instructions for the 400 Deployments. `Hasher` already buffers bytes; the number did not move.
 
 Benchmarks against the parent commit: corpus composition 329M to 226M instructions (allocations 96K to 72K), Deployments decoding
 440M to 347M (143K to 122K), and TOML's Cargo.lock decoding 134M to 122M (59K to 51K), through the shared decoder. Next: the
