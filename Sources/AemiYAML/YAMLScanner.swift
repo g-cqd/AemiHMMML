@@ -156,10 +156,17 @@ struct YAMLScanner {
     /// Inserts a token at the position its number names (a key found once its `:` arrives).
     mutating func insert(_ kind: YAMLToken.Kind, number: Int, at offset: Int, line startLine: Int) {
         let position = head + (number - tokensParsed)
-        tokens.insert(
-            YAMLToken(kind: kind, start: offset, end: offset, line: startLine, firstOnLine: false),
-            at: position
-        )
+        let token = YAMLToken(kind: kind, start: offset, end: offset, line: startLine, firstOnLine: false)
+        // The key goes before the few tokens fetched since it was saved (usually one): moved by hand, without the generic
+        // replacement `insert` takes, which cost more than the move.
+        guard position < tokens.count else { return tokens.append(token) }
+        tokens.append(tokens[tokens.count - 1])
+        var moving = tokens.count - 2
+        while moving > position {
+            tokens[moving] = tokens[moving - 1]
+            moving -= 1
+        }
+        tokens[position] = token
     }
 
     // MARK: - Indentation

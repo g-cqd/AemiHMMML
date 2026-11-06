@@ -99,13 +99,13 @@ extension YAMLParser {
     /// node; either way the parse returns to `next`.
     mutating func node(
         after indicator: YAMLToken,
-        unless ends: [YAMLToken.Kind],
+        unless ends: YAMLTokenEnds,
         then next: State,
         block: Bool,
         indentless: Bool = false
     ) throws(Diagnostic) -> YAMLEvent {
         scanner.skip()
-        if ends.contains(try scanner.peek().kind) {
+        if ends.holds(try scanner.peek().kind) {
             state = next
             return emptyScalar(at: indicator.end)
         }
@@ -177,5 +177,33 @@ extension YAMLParser {
             block: true,
             indentless: true
         )
+    }
+}
+
+/// The tokens after an indicator that leave it without a node (`- ` then `-`): payload-free kinds as bits, so the set a call names
+/// is a constant, where an array literal was an allocation per call.
+struct YAMLTokenEnds: OptionSet {
+    let rawValue: UInt8
+
+    static let blockEntry = Self(rawValue: 1 << 0)
+    static let blockEnd = Self(rawValue: 1 << 1)
+    static let key = Self(rawValue: 1 << 2)
+    static let value = Self(rawValue: 1 << 3)
+    static let flowEntry = Self(rawValue: 1 << 4)
+    static let flowSequenceEnd = Self(rawValue: 1 << 5)
+    static let flowMappingEnd = Self(rawValue: 1 << 6)
+
+    /// Whether `kind` is one of them.
+    func holds(_ kind: YAMLToken.Kind) -> Bool {
+        switch kind {
+            case .blockEntry: contains(.blockEntry)
+            case .blockEnd: contains(.blockEnd)
+            case .key: contains(.key)
+            case .value: contains(.value)
+            case .flowEntry: contains(.flowEntry)
+            case .flowSequenceEnd: contains(.flowSequenceEnd)
+            case .flowMappingEnd: contains(.flowMappingEnd)
+            default: false
+        }
     }
 }

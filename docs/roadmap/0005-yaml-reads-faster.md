@@ -25,7 +25,11 @@ First pass (profiled with `sample` on a release driver, measured in instructions
   composition 226M to 214M, Deployments decoding 347M to 339M.
 - `YAMLNode` repacked: 32-bit offsets and indices, one-byte fields last, about 88 bytes instead of about 152. Instructions barely
   move (−0.3 %), since copying is memory-bound; peak memory composing the Deployments fell from 18–21 MB to 13.5–16 MB.
-- Tried and reverted: feeding the key hasher eight bytes at a time. `Hasher` already buffers bytes; the number did not move.
+- The parser: the token kinds that end an indicator's node were an array literal per call, an allocation per token. They are an
+  option set now: events on the corpus 130M to 91M instructions (−30 %), composition 214M to 175M. In the scanner, the key token
+  goes in by hand instead of through `Array.insert`, and the simple keys' line list keeps its length (−3.7 % on events).
+- Tried and reverted: feeding the key hasher eight bytes at a time; finding a plain run's end with AemiKernels' byte-set scan
+  (+1.2 %: the runs are too short for it). `Hasher` already buffers bytes; the number did not move.
 
 Benchmarks against the parent commit: corpus composition 329M to 226M instructions (allocations 96K to 72K), Deployments decoding
 440M to 347M (143K to 122K), and TOML's Cargo.lock decoding 134M to 122M (59K to 51K), through the shared decoder. Next: the

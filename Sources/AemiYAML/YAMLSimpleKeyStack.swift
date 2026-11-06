@@ -9,8 +9,10 @@ struct YAMLSimpleKeyStack {
     private var lineBound = [true]
     /// The outermost level whose key is possible, or `Int.max`.
     private(set) var oldest = Int.max
-    /// Levels that may hold a line-bound possible key; cleaned as they are read.
+    /// Levels that may hold a line-bound possible key, the first `listed` of them; cleaned as they are read. The array keeps its
+    /// length, so listing and cleaning never resize it.
     private var lineBoundLevels: [Int] = []
+    private var listed = 0
     /// Where nextSavedBefore(line:) is in its compaction of the list.
     private var reading = 0
     private var writing = 0
@@ -39,7 +41,10 @@ struct YAMLSimpleKeyStack {
         keys[level] = key
         guard key.possible else { return }
         oldest = min(oldest, level)
-        if lineBound[level] { lineBoundLevels.append(level) }
+        if lineBound[level] {
+            if listed < lineBoundLevels.count { lineBoundLevels[listed] = level } else { lineBoundLevels.append(level) }
+            listed += 1
+        }
     }
 
     mutating func clear(_ level: Int) {
@@ -56,7 +61,7 @@ struct YAMLSimpleKeyStack {
     /// The next level whose line-bound key is possible and was saved before `line`, or nil once there is none: the list is
     /// compacted in place as it is read (keys still possible on this line stay listed), so a line costs no allocation.
     mutating func nextSavedBefore(line: Int) -> Int? {
-        while reading < lineBoundLevels.count {
+        while reading < listed {
             let level = lineBoundLevels[reading]
             reading += 1
             guard level < keys.count, lineBound[level], keys[level].possible else { continue }
@@ -66,7 +71,7 @@ struct YAMLSimpleKeyStack {
                 writing += 1
             }
         }
-        lineBoundLevels.removeLast(lineBoundLevels.count - writing)
+        listed = writing
         reading = 0
         writing = 0
         return nil
