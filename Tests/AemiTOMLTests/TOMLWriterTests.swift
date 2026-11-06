@@ -97,7 +97,7 @@ struct TOMLWriterTests {
     @Test("floats are the shortest text that reads back, and always floats")
     func floats() throws {
         #expect(
-            try written(["a": 1.0, "b": 0.1, "c": 1e100, "d": -0.0, "e": 5e-324]) == """
+            try written(["a": 1.0, "b": 0.1, "c": 1e100, "d": -0.0, "e": .float(.leastNonzeroMagnitude)]) == """
                 a = 1.0
                 b = 0.1
                 c = 1e+100
@@ -181,7 +181,8 @@ struct TOMLWriterTests {
         var numbers: [Double] = [
             .leastNonzeroMagnitude, .leastNormalMagnitude, .greatestFiniteMagnitude, -.greatestFiniteMagnitude, 1e16,
             1e15,
-            9_007_199_254_740_994, 1e-5, 1e-6, 0.000123, 123_456.789, 5e-324, 2.2250738585072009e-308
+            9_007_199_254_740_994, 1e-5, 1e-6, 0.000123, 123_456.789, Double(bitPattern: 1),
+            Double(bitPattern: 0x000F_FFFF_FFFF_FFFF)
         ]
         numbers += (0 ..< 20_000).map { _ in Double(bitPattern: random.next()) }.filter(\.isFinite)
         numbers += (-30 ... 30).map { Double(sign: .plus, exponent: 0, significand: 1) * pow10($0) }
