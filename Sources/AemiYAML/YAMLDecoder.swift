@@ -27,6 +27,6 @@ public struct YAMLDecoder: Sendable {
 
     /// Decodes one value of a document.
     public func decode<T: Decodable>(_ type: T.Type, from value: YAMLValue) throws -> T {
-        try MarkupDecoding(value: value, codingPath: [], userInfo: userInfo).decode(type, from: value, at: [])
+        try MarkupDecoding.decode(type, storage: value.storage, node: value.index, userInfo: userInfo)
     }
 }

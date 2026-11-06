@@ -101,6 +101,86 @@ struct YAMLCodableTests {
         #expect(holder.at.description == "2001-12-14T21:59:43.1Z")
     }
 
+    /// Every optional kind the keyed container decodes in one lookup.
+    struct Optionals: Decodable, Equatable {
+        var flag: Bool?
+        var text: String?
+        var double: Double?
+        var float: Float?
+        var int: Int?
+        var int8: Int8?
+        var int16: Int16?
+        var int32: Int32?
+        var int64: Int64?
+        var uint: UInt?
+        var uint8: UInt8?
+        var uint16: UInt16?
+        var uint32: UInt32?
+        var uint64: UInt64?
+        var list: [Int]?
+    }
+
+    @Test("an optional reads its value when present, nil when absent or null, and refuses a mismatch with its path")
+    func optionals() throws {
+        let present = try YAMLDecoder()
+            .decode(
+                Optionals.self,
+                from: """
+                    flag: true
+                    text: hi
+                    double: 1.5
+                    float: 2.5
+                    int: -1
+                    int8: -8
+                    int16: -16
+                    int32: -32
+                    int64: -64
+                    uint: 1
+                    uint8: 8
+                    uint16: 16
+                    uint32: 32
+                    uint64: 18446744073709551615
+                    list: [1, 2]
+                    """
+            )
+        #expect(
+            present
+                == Optionals(
+                    flag: true,
+                    text: "hi",
+                    double: 1.5,
+                    float: 2.5,
+                    int: -1,
+                    int8: -8,
+                    int16: -16,
+                    int32: -32,
+                    int64: -64,
+                    uint: 1,
+                    uint8: 8,
+                    uint16: 16,
+                    uint32: 32,
+                    uint64: .max,
+                    list: [1, 2]
+                )
+        )
+        let keys =
+            ["flag", "text", "double", "float", "int", "int8", "int16", "int32", "int64"]
+            + ["uint", "uint8", "uint16", "uint32", "uint64", "list"]
+        let nulls = try YAMLDecoder().decode(Optionals.self, from: keys.map { "\($0): ~" }.joined(separator: "\n"))
+        #expect(nulls == Optionals())
+        #expect(try YAMLDecoder().decode(Optionals.self, from: "{}") == Optionals())
+        for key in keys {
+            let error = #expect(throws: DecodingError.self) {
+                try YAMLDecoder().decode(Optionals.self, from: "\(key): {a: 1}")
+            }
+            guard case .typeMismatch(_, let context) = error else {
+                Issue.record("expected typeMismatch for \(key), got \(String(describing: error))")
+                continue
+            }
+            #expect(context.codingPath.map(\.stringValue) == [key])
+        }
+    }
+
     @Test("a composition error reaches the caller as its diagnostic")
     func compositionErrors() {
         struct Any1: Decodable { var a: Int }

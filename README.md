@@ -6,7 +6,7 @@ speed: UTF-8 bytes in, a flat tape of offsets out, no copies, bounded in time an
 **Status: TOML reads and writes (phases 1 and 2 of the plan).** `AemiTOML` reads TOML 1.0 and 1.1 and writes one canonical form both versions read; it passes
 toml-test whole under the suite's own runner, decoder and encoder (every valid file to its JSON and back, every invalid file refused, both
 versions). Parsing takes fewer instructions per byte than TOMLDecoder on every benchmark file, reading every value two to three and a half
-times fewer, Codable decoding 1.9 times fewer; writing runs at 330 to 660 MB/s with a handful of allocations (ADR-0011). The
+times fewer, Codable decoding 2.1 times fewer; writing runs at 330 to 660 MB/s with a handful of allocations (ADR-0011). The
 `AemiHMMML` umbrella adds Foundation's `Date` and the projection to AemiJSON's `JSONValue`. **YAML reads to events**: `AemiYAML`
 passes yaml-test-suite's 402 event cases and refuses its 94 error cases, at libyaml's instructions per byte on a corpus of real
 files (170; libfyaml 142, rapidyaml 42: ADR-0012). In recovering mode it never throws, and reads what it can (ADR-0014). Documents compose (aliases bounded, the core, JSON and failsafe

@@ -1,20 +1,24 @@
 extension MarkupDecoding {
     struct Unkeyed: UnkeyedDecodingContainer {
         let decoding: MarkupDecoding
-        /// Read once: a format may walk to reach an element by position.
-        private let elements: [Value]
+        /// The elements' nodes, read once: a format may walk to reach an element by position.
+        private let elements: ArraySlice<Int32>
         private(set) var currentIndex = 0
 
         init(decoding: MarkupDecoding) {
             self.decoding = decoding
-            elements = decoding.value.markupElements
+            elements = decoding.value.storage.markupElements(decoding.value.node)
+        }
+
+        private func element(_ position: Int) -> MarkupView {
+            MarkupView(storage: decoding.value.storage, node: elements[elements.startIndex + position])
         }
 
         var codingPath: [any CodingKey] { decoding.codingPath }
         var count: Int? { elements.count }
         var isAtEnd: Bool { currentIndex >= elements.count }
 
-        private mutating func next(_ type: Any.Type) throws -> (Value, [any CodingKey]) {
+        private mutating func next(_ type: Any.Type) throws -> (MarkupView, [any CodingKey]) {
             let path = codingPath + [MarkupCodingKey(intValue: currentIndex)]
             guard currentIndex < elements.count else {
                 throw DecodingError.valueNotFound(
@@ -26,7 +30,7 @@ extension MarkupDecoding {
                 )
             }
             currentIndex += 1
-            return (elements[currentIndex - 1], path)
+            return (element(currentIndex - 1), path)
         }
 
         /// True for a null element, which it moves past; otherwise false, and the container does not move.
@@ -37,7 +41,7 @@ extension MarkupDecoding {
                     DecodingError.Context(codingPath: codingPath, debugDescription: "The sequence is at its end")
                 )
             }
-            guard elements[currentIndex].markupKind == .null else { return false }
+            guard element(currentIndex).markupKind == .null else { return false }
             currentIndex += 1
             return true
         }
@@ -84,7 +88,7 @@ extension MarkupDecoding {
         let decoding: MarkupDecoding
         var codingPath: [any CodingKey] { decoding.codingPath }
 
-        private var member: (Value, [any CodingKey]) { (decoding.value, codingPath) }
+        private var member: (MarkupView, [any CodingKey]) { (decoding.value, codingPath) }
 
         func decodeNil() -> Bool { decoding.value.markupKind == .null }
         func decode(_ type: Bool.Type) throws -> Bool { try MarkupScalars.bool(member) }
@@ -109,14 +113,14 @@ extension MarkupDecoding {
 
 /// Scalars read for the decoder, each refusing a value of another kind with the path to it.
 enum MarkupScalars {
-    static func bool<Value: MarkupValue>(_ member: (Value, [any CodingKey])) throws -> Bool {
+    static func bool(_ member: (MarkupView, [any CodingKey])) throws -> Bool {
         guard let flag = member.0.markupBool else {
             throw markupMismatch(Bool.self, member.0, member.1, wanted: "a boolean")
         }
         return flag
     }
 
-    static func string<Value: MarkupValue>(_ member: (Value, [any CodingKey])) throws -> String {
+    static func string(_ member: (MarkupView, [any CodingKey])) throws -> String {
         guard let text = member.0.markupString else {
             throw markupMismatch(String.self, member.0, member.1, wanted: "a string")
         }
@@ -124,14 +128,14 @@ enum MarkupScalars {
     }
 
     /// A float, or an integer a `Double` holds exactly (`timeout = 5`).
-    static func double<Value: MarkupValue>(_ member: (Value, [any CodingKey])) throws -> Double {
+    static func double(_ member: (MarkupView, [any CodingKey])) throws -> Double {
         if let number = member.0.markupFloat { return number }
         if let whole = member.0.markupInteger, let number = Double(exactly: whole) { return number }
         throw markupMismatch(Double.self, member.0, member.1, wanted: "a float")
     }
 
     /// As ``double(_:)``, refusing a finite value too large for a `Float`.
-    static func float<Value: MarkupValue>(_ member: (Value, [any CodingKey])) throws -> Float {
+    static func float(_ member: (MarkupView, [any CodingKey])) throws -> Float {
         let number = try double(member)
         let narrowed = Float(number)
         guard narrowed.isFinite || !number.isFinite else {
@@ -142,7 +146,7 @@ enum MarkupScalars {
         return narrowed
     }
 
-    static func integer<T: FixedWidthInteger, Value: MarkupValue>(_ type: T.Type, _ member: (Value, [any CodingKey]))
+    static func integer<T: FixedWidthInteger>(_ type: T.Type, _ member: (MarkupView, [any CodingKey]))
         throws -> T
     {
         guard let whole = member.0.markupInteger else {

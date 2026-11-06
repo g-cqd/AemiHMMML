@@ -1,19 +1,30 @@
 internal import AemiKernel
 
-/// The `Decoder` a value sees, for any format whose views are ``MarkupValue``s: TOML's and YAML's decoders are this, so the
+/// The `Decoder` a value sees, for any format whose storage is a ``MarkupStorage``: TOML's and YAML's decoders are this, so the
 /// Codable surface (every overload of every container) is written once.
-package struct MarkupDecoding<Value: MarkupValue>: Decoder {
-    let value: Value
+package struct MarkupDecoding: Decoder {
+    let value: MarkupView
     package let codingPath: [any CodingKey]
     let sendableUserInfo: [CodingUserInfoKey: any Sendable]
 
-    package init(value: Value, codingPath: [any CodingKey], userInfo: [CodingUserInfoKey: any Sendable]) {
+    package init(value: MarkupView, codingPath: [any CodingKey], userInfo: [CodingUserInfoKey: any Sendable]) {
         self.value = value
         self.codingPath = codingPath
         sendableUserInfo = userInfo
     }
 
     package var userInfo: [CodingUserInfoKey: Any] { sendableUserInfo }
+
+    /// A document's node as `T`: what a format's decoder does.
+    package static func decode<T: Decodable>(
+        _ type: T.Type,
+        storage: any MarkupStorage,
+        node: Int32,
+        userInfo: [CodingUserInfoKey: any Sendable]
+    ) throws -> T {
+        let view = MarkupView(storage: storage, node: node)
+        return try MarkupDecoding(value: view, codingPath: [], userInfo: userInfo).decode(type, from: view, at: [])
+    }
 
     package func container<Key: CodingKey>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
         guard value.markupKind == .mapping else {
@@ -32,8 +43,8 @@ package struct MarkupDecoding<Value: MarkupValue>: Decoder {
     package func singleValueContainer() throws -> any SingleValueDecodingContainer { Single(decoding: self) }
 
     /// `value` as `T`: the format's own types and date-times read as themselves, the rest through their `init(from:)`.
-    package func decode<T: Decodable>(_ type: T.Type, from value: Value, at path: [any CodingKey]) throws -> T {
-        if let own = try Value.decodeOwnType(type, from: value, at: path) { return own }
+    package func decode<T: Decodable>(_ type: T.Type, from value: MarkupView, at path: [any CodingKey]) throws -> T {
+        if let own = try value.storage.decodeOwnType(type, at: value.node, path: path) { return own }
         if type == RFC3339DateTime.self {
             guard let moment = value.markupDateTime as? T else {
                 throw markupMismatch(type, value, path, wanted: "a date or time")
@@ -57,7 +68,7 @@ package struct MarkupDecoding<Value: MarkupValue>: Decoder {
         return try T(from: MarkupDecoding(value: value, codingPath: path, userInfo: sendableUserInfo))
     }
 
-    func decoder(for value: Value, at path: [any CodingKey]) -> MarkupDecoding {
+    func decoder(for value: MarkupView, at path: [any CodingKey]) -> MarkupDecoding {
         MarkupDecoding(value: value, codingPath: path, userInfo: sendableUserInfo)
     }
 
@@ -69,7 +80,7 @@ package struct MarkupDecoding<Value: MarkupValue>: Decoder {
 
         func contains(_ key: Key) -> Bool { decoding.value.markupMember(key.stringValue) != nil }
 
-        private func member(_ key: Key) throws -> (Value, [any CodingKey]) {
+        private func member(_ key: Key) throws -> (MarkupView, [any CodingKey]) {
             guard let member = decoding.value.markupMember(key.stringValue) else {
                 throw DecodingError.keyNotFound(
                     key,
@@ -115,6 +126,61 @@ package struct MarkupDecoding<Value: MarkupValue>: Decoder {
         func decode<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T {
             let (value, path) = try member(key)
             return try decoding.decode(type, from: value, at: path)
+        }
+
+        /// The member under `key` unless it is absent or null: one lookup, where Codable's default `decodeIfPresent` makes three.
+        private func present(_ key: Key) -> (MarkupView, [any CodingKey])? {
+            guard let member = decoding.value.markupMember(key.stringValue), member.markupKind != .null else {
+                return nil
+            }
+            return (member, codingPath + [key])
+        }
+
+        func decodeIfPresent(_ type: Bool.Type, forKey key: Key) throws -> Bool? {
+            try present(key).map(MarkupScalars.bool)
+        }
+        func decodeIfPresent(_ type: String.Type, forKey key: Key) throws -> String? {
+            try present(key).map(MarkupScalars.string)
+        }
+        func decodeIfPresent(_ type: Double.Type, forKey key: Key) throws -> Double? {
+            try present(key).map(MarkupScalars.double)
+        }
+        func decodeIfPresent(_ type: Float.Type, forKey key: Key) throws -> Float? {
+            try present(key).map(MarkupScalars.float)
+        }
+        func decodeIfPresent(_ type: Int.Type, forKey key: Key) throws -> Int? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: Int8.Type, forKey key: Key) throws -> Int8? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: Int16.Type, forKey key: Key) throws -> Int16? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: Int32.Type, forKey key: Key) throws -> Int32? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: Int64.Type, forKey key: Key) throws -> Int64? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: UInt.Type, forKey key: Key) throws -> UInt? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: UInt8.Type, forKey key: Key) throws -> UInt8? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: UInt16.Type, forKey key: Key) throws -> UInt16? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: UInt32.Type, forKey key: Key) throws -> UInt32? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+        func decodeIfPresent(_ type: UInt64.Type, forKey key: Key) throws -> UInt64? {
+            try present(key).map { try MarkupScalars.integer(type, $0) }
+        }
+
+        func decodeIfPresent<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T? {
+            try present(key).map { try decoding.decode(type, from: $0.0, at: $0.1) }
         }
 
         func nestedContainer<NestedKey: CodingKey>(
@@ -166,7 +232,7 @@ package struct MarkupCodingKey: CodingKey {
 }
 
 /// A type mismatch naming what was wanted and what the document holds.
-func markupMismatch(_ type: Any.Type, _ value: some MarkupValue, _ path: [any CodingKey], wanted: String)
+func markupMismatch(_ type: Any.Type, _ value: MarkupView, _ path: [any CodingKey], wanted: String)
     -> DecodingError
 {
     DecodingError.typeMismatch(

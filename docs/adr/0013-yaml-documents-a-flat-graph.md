@@ -22,7 +22,8 @@ to. Nothing is copied from the source; strings are decoded when read. `YAMLValue
   (children in order, or a mapping's pairs summed, order-free); a mapping's keys are scanned while small and indexed by hash past
   eight, and only a hash match is compared in depth, with a stack of pairs.
 - **Codable**: `YAMLDecoder` and `TOMLDecoder` are one decoder (`MarkupDecoding`, in the core, at package access) over a small
-  protocol both views adopt (`MarkupValue`), so the containers' overloads exist once. YAML reads `null` as nil, any non-null
+  protocol both documents' storages adopt (`MarkupStorage`, asked by node index; ADR-0017's amendment), so the containers'
+  overloads exist once. YAML reads `null` as nil, any non-null
   scalar's text into a `String`, and a scalar's text as a date-time for `Date` and `RFC3339DateTime`.
 - **JSON** (ADR-0008, the umbrella): `YAMLValue.json` with keys as their text and a complex key as its JSON text.
 

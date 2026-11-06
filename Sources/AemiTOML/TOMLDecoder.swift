@@ -30,6 +30,6 @@ public struct TOMLDecoder: Sendable {
 
     /// Decodes one value of a document, a table or any other kind.
     public func decode<T: Decodable>(_ type: T.Type, from value: TOMLValue) throws -> T {
-        try MarkupDecoding(value: value, codingPath: [], userInfo: userInfo).decode(type, from: value, at: [])
+        try MarkupDecoding.decode(type, storage: value.storage, node: value.index, userInfo: userInfo)
     }
 }
