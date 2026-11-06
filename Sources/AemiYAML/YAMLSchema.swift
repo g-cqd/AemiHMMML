@@ -59,6 +59,11 @@ enum YAMLResolver {
             case nil: break
         }
         guard style == .plain, schema != .failsafe else { return YAMLResolved(kind: .string) }
+        // Most plain scalars are text. One whose first byte starts no null, boolean or number is a string, under the core schema,
+        // or an error under JSON's, without trying each type.
+        if let first = value.first, !typedStart[Int(first)] {
+            return schema == .json ? nil : YAMLResolved(kind: .string)
+        }
         if let resolved = null(value, schema: schema) ?? bool(value, schema: schema) ?? int(value, schema: schema)
             ?? float(value, schema: schema)
         {
@@ -67,24 +72,42 @@ enum YAMLResolver {
         return schema == .json ? nil : YAMLResolved(kind: .string)
     }
 
+    /// The bytes a null, a boolean or a number can start with, in the JSON or the core schema: digits, `+`, `-`, `.`, `~`, and
+    /// `n`, `t`, `f` in either case.
+    private static let typedStart: [Bool] = (0 ... 255)
+        .map { byte in
+            (0x30 ... 0x39).contains(byte) || Array("+-.~nNtTfF".utf8).contains(UInt8(byte))
+        }
+
+    private static let jsonNull = words(["null"])
+    private static let coreNull = words(["", "~", "null", "Null", "NULL"])
+    private static let jsonTrue = words(["true"])
+    private static let coreTrue = words(["true", "True", "TRUE"])
+    private static let jsonFalse = words(["false"])
+    private static let coreFalse = words(["false", "False", "FALSE"])
+    private static let infinities = words([".inf", ".Inf", ".INF"])
+    private static let notANumber = words([".nan", ".NaN", ".NAN"])
+
+    private static func words(_ texts: [String]) -> [[UInt8]] { texts.map { Array($0.utf8) } }
+
     private static func asFloat(_ int: YAMLResolved) -> YAMLResolved {
         YAMLResolved(kind: .float, payload: Double(Int64(bitPattern: int.payload)).bitPattern)
     }
 
     private static func null(_ value: ArraySlice<UInt8>, schema: YAMLSchema) -> YAMLResolved? {
-        matches(value, schema == .json ? ["null"] : ["", "~", "null", "Null", "NULL"]) ? YAMLResolved(kind: .null) : nil
+        matches(value, schema == .json ? jsonNull : coreNull) ? YAMLResolved(kind: .null) : nil
     }
 
     private static func bool(_ value: ArraySlice<UInt8>, schema: YAMLSchema) -> YAMLResolved? {
-        let truths = schema == .json ? ["true"] : ["true", "True", "TRUE"]
-        let falsehoods = schema == .json ? ["false"] : ["false", "False", "FALSE"]
+        let truths = schema == .json ? jsonTrue : coreTrue
+        let falsehoods = schema == .json ? jsonFalse : coreFalse
         if matches(value, truths) { return YAMLResolved(kind: .bool, payload: 1) }
         if matches(value, falsehoods) { return YAMLResolved(kind: .bool, payload: 0) }
         return nil
     }
 
-    private static func matches(_ value: ArraySlice<UInt8>, _ words: [String]) -> Bool {
-        words.contains { value.elementsEqual($0.utf8) }
+    private static func matches(_ value: ArraySlice<UInt8>, _ words: [[UInt8]]) -> Bool {
+        words.contains { value.elementsEqual($0) }
     }
 
     /// `[-+]?[0-9]+`, `0o[0-7]+`, `0x[0-9a-fA-F]+` (core); `-?(0|[1-9][0-9]*)` (JSON).
@@ -144,10 +167,10 @@ enum YAMLResolver {
             body = body.dropFirst()
         }
         if schema == .core {
-            if [".inf", ".Inf", ".INF"].contains(where: { body.elementsEqual($0.utf8) }) {
+            if matches(body, infinities) {
                 return YAMLResolved(kind: .float, payload: (negative ? -Double.infinity : .infinity).bitPattern)
             }
-            if value.count == body.count, [".nan", ".NaN", ".NAN"].contains(where: { body.elementsEqual($0.utf8) }) {
+            if value.count == body.count, matches(body, notANumber) {
                 return YAMLResolved(kind: .float, payload: Double.nan.bitPattern)
             }
         }

@@ -68,6 +68,13 @@ package struct MarkupDecoding: Decoder {
         return try T(from: MarkupDecoding(value: value, codingPath: path, userInfo: sendableUserInfo))
     }
 
+    /// A container's member as `T`, its path built only now.
+    func decode<T: Decodable>(_ type: T.Type, member: MarkupMember) throws -> T {
+        try decode(type, from: member.view, at: member.path)
+    }
+
+    func decoder(for member: MarkupMember) -> MarkupDecoding { decoder(for: member.view, at: member.path) }
+
     func decoder(for value: MarkupView, at path: [any CodingKey]) -> MarkupDecoding {
         MarkupDecoding(value: value, codingPath: path, userInfo: sendableUserInfo)
     }
@@ -80,7 +87,7 @@ package struct MarkupDecoding: Decoder {
 
         func contains(_ key: Key) -> Bool { decoding.value.markupMember(key.stringValue) != nil }
 
-        private func member(_ key: Key) throws -> (MarkupView, [any CodingKey]) {
+        private func member(_ key: Key) throws -> MarkupMember {
             guard let member = decoding.value.markupMember(key.stringValue) else {
                 throw DecodingError.keyNotFound(
                     key,
@@ -90,10 +97,10 @@ package struct MarkupDecoding: Decoder {
                     )
                 )
             }
-            return (member, codingPath + [key])
+            return MarkupMember(view: member, parent: codingPath, key: key)
         }
 
-        func decodeNil(forKey key: Key) throws -> Bool { try member(key).0.markupKind == .null }
+        func decodeNil(forKey key: Key) throws -> Bool { try member(key).view.markupKind == .null }
         func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool { try MarkupScalars.bool(member(key)) }
         func decode(_ type: String.Type, forKey key: Key) throws -> String { try MarkupScalars.string(member(key)) }
         func decode(_ type: Double.Type, forKey key: Key) throws -> Double { try MarkupScalars.double(member(key)) }
@@ -124,16 +131,15 @@ package struct MarkupDecoding: Decoder {
         }
 
         func decode<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T {
-            let (value, path) = try member(key)
-            return try decoding.decode(type, from: value, at: path)
+            try decoding.decode(type, member: member(key))
         }
 
         /// The member under `key` unless it is absent or null: one lookup, where Codable's default `decodeIfPresent` makes three.
-        private func present(_ key: Key) -> (MarkupView, [any CodingKey])? {
+        private func present(_ key: Key) -> MarkupMember? {
             guard let member = decoding.value.markupMember(key.stringValue), member.markupKind != .null else {
                 return nil
             }
-            return (member, codingPath + [key])
+            return MarkupMember(view: member, parent: codingPath, key: key)
         }
 
         func decodeIfPresent(_ type: Bool.Type, forKey key: Key) throws -> Bool? {
@@ -180,20 +186,18 @@ package struct MarkupDecoding: Decoder {
         }
 
         func decodeIfPresent<T: Decodable>(_ type: T.Type, forKey key: Key) throws -> T? {
-            try present(key).map { try decoding.decode(type, from: $0.0, at: $0.1) }
+            try present(key).map { try decoding.decode(type, member: $0) }
         }
 
         func nestedContainer<NestedKey: CodingKey>(
             keyedBy type: NestedKey.Type,
             forKey key: Key
         ) throws -> KeyedDecodingContainer<NestedKey> {
-            let (value, path) = try member(key)
-            return try decoding.decoder(for: value, at: path).container(keyedBy: type)
+            try decoding.decoder(for: member(key)).container(keyedBy: type)
         }
 
         func nestedUnkeyedContainer(forKey key: Key) throws -> any UnkeyedDecodingContainer {
-            let (value, path) = try member(key)
-            return try decoding.decoder(for: value, at: path).unkeyedContainer()
+            try decoding.decoder(for: member(key)).unkeyedContainer()
         }
 
         func superDecoder() throws -> any Decoder {
@@ -207,8 +211,7 @@ package struct MarkupDecoding: Decoder {
         }
 
         func superDecoder(forKey key: Key) throws -> any Decoder {
-            let (value, path) = try member(key)
-            return decoding.decoder(for: value, at: path)
+            try decoding.decoder(for: member(key))
         }
     }
 }

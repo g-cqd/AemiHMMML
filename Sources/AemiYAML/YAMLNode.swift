@@ -15,7 +15,21 @@ struct YAMLNode {
     var anchor: Range<Int>?
     /// An index into the storage's tags, or -1.
     var tag: Int32 = -1
-    var scalar = YAMLScalar(style: .plain, text: 0 ..< 0)
+    /// A scalar's style, text, indentation and chomping, without its properties (the anchor and tag are the node's): kept as plain
+    /// fields so a node holds no reference, and copies and grows as bytes.
+    var scalarStyle = YAMLScalarStyle.plain
+    var scalarText = 0 ..< 0
+    var scalarIndentation = 0
+    var scalarChomping = YAMLChomping.clip
+    var scalar: YAMLScalar {
+        get {
+            YAMLScalar(style: scalarStyle, text: scalarText, indentation: scalarIndentation, chomping: scalarChomping)
+        }
+        set {
+            (scalarStyle, scalarText, scalarIndentation, scalarChomping) =
+                (newValue.style, newValue.text, newValue.indentation, newValue.chomping)
+        }
+    }
     var resolved = YAMLResolved(kind: .null)
     /// For an alias, the node it names.
     var target: Int32 = -1

@@ -18,19 +18,22 @@ extension MarkupDecoding {
         var count: Int? { elements.count }
         var isAtEnd: Bool { currentIndex >= elements.count }
 
-        private mutating func next(_ type: Any.Type) throws -> (MarkupView, [any CodingKey]) {
-            let path = codingPath + [MarkupCodingKey(intValue: currentIndex)]
+        private mutating func next(_ type: Any.Type) throws -> MarkupMember {
             guard currentIndex < elements.count else {
                 throw DecodingError.valueNotFound(
                     type,
                     DecodingError.Context(
-                        codingPath: path,
+                        codingPath: codingPath + [MarkupCodingKey(intValue: currentIndex)],
                         debugDescription: "The sequence has \(elements.count) elements"
                     )
                 )
             }
             currentIndex += 1
-            return (element(currentIndex - 1), path)
+            return MarkupMember(
+                view: element(currentIndex - 1),
+                parent: codingPath,
+                key: MarkupCodingKey(intValue: currentIndex - 1)
+            )
         }
 
         /// True for a null element, which it moves past; otherwise false, and the container does not move.
@@ -62,25 +65,21 @@ extension MarkupDecoding {
         mutating func decode(_ type: UInt64.Type) throws -> UInt64 { try MarkupScalars.integer(type, next(type)) }
 
         mutating func decode<T: Decodable>(_ type: T.Type) throws -> T {
-            let (value, path) = try next(type)
-            return try decoding.decode(type, from: value, at: path)
+            try decoding.decode(type, member: next(type))
         }
 
         mutating func nestedContainer<NestedKey: CodingKey>(keyedBy type: NestedKey.Type) throws
             -> KeyedDecodingContainer<NestedKey>
         {
-            let (value, path) = try next(type)
-            return try decoding.decoder(for: value, at: path).container(keyedBy: type)
+            try decoding.decoder(for: next(type)).container(keyedBy: type)
         }
 
         mutating func nestedUnkeyedContainer() throws -> any UnkeyedDecodingContainer {
-            let (value, path) = try next([Int].self)
-            return try decoding.decoder(for: value, at: path).unkeyedContainer()
+            try decoding.decoder(for: next([Int].self)).unkeyedContainer()
         }
 
         mutating func superDecoder() throws -> any Decoder {
-            let (value, path) = try next(Any.self)
-            return decoding.decoder(for: value, at: path)
+            try decoding.decoder(for: next(Any.self))
         }
     }
 
@@ -88,7 +87,7 @@ extension MarkupDecoding {
         let decoding: MarkupDecoding
         var codingPath: [any CodingKey] { decoding.codingPath }
 
-        private var member: (MarkupView, [any CodingKey]) { (decoding.value, codingPath) }
+        private var member: MarkupMember { MarkupMember(view: decoding.value, parent: codingPath, key: nil) }
 
         func decodeNil() -> Bool { decoding.value.markupKind == .null }
         func decode(_ type: Bool.Type) throws -> Bool { try MarkupScalars.bool(member) }
@@ -111,58 +110,68 @@ extension MarkupDecoding {
     }
 }
 
+/// A value a container hands out, and how to name it: the container's path and the member's key, joined only when something asks
+/// (an error, a nested decoder). A scalar read builds no path: building one for every value was an allocation per value.
+struct MarkupMember {
+    let view: MarkupView
+    let parent: [any CodingKey]
+    let key: (any CodingKey)?
+
+    var path: [any CodingKey] { key.map { parent + [$0] } ?? parent }
+}
+
 /// Scalars read for the decoder, each refusing a value of another kind with the path to it.
 enum MarkupScalars {
-    static func bool(_ member: (MarkupView, [any CodingKey])) throws -> Bool {
-        guard let flag = member.0.markupBool else {
-            throw markupMismatch(Bool.self, member.0, member.1, wanted: "a boolean")
+    static func bool(_ member: MarkupMember) throws -> Bool {
+        guard let flag = member.view.markupBool else {
+            throw markupMismatch(Bool.self, member.view, member.path, wanted: "a boolean")
         }
         return flag
     }
 
-    static func string(_ member: (MarkupView, [any CodingKey])) throws -> String {
-        guard let text = member.0.markupString else {
-            throw markupMismatch(String.self, member.0, member.1, wanted: "a string")
+    static func string(_ member: MarkupMember) throws -> String {
+        guard let text = member.view.markupString else {
+            throw markupMismatch(String.self, member.view, member.path, wanted: "a string")
         }
         return text
     }
 
     /// A float, or an integer a `Double` holds exactly (`timeout = 5`).
-    static func double(_ member: (MarkupView, [any CodingKey])) throws -> Double {
-        if let number = member.0.markupFloat { return number }
-        if let whole = member.0.markupInteger, let number = Double(exactly: whole) { return number }
-        throw markupMismatch(Double.self, member.0, member.1, wanted: "a float")
+    static func double(_ member: MarkupMember) throws -> Double {
+        if let number = member.view.markupFloat { return number }
+        if let whole = member.view.markupInteger, let number = Double(exactly: whole) { return number }
+        throw markupMismatch(Double.self, member.view, member.path, wanted: "a float")
     }
 
     /// As ``double(_:)``, refusing a finite value too large for a `Float`.
-    static func float(_ member: (MarkupView, [any CodingKey])) throws -> Float {
+    static func float(_ member: MarkupMember) throws -> Float {
         let number = try double(member)
         let narrowed = Float(number)
         guard narrowed.isFinite || !number.isFinite else {
             throw DecodingError.dataCorrupted(
-                DecodingError.Context(codingPath: member.1, debugDescription: "\(number) does not fit a Float")
+                DecodingError.Context(codingPath: member.path, debugDescription: "\(number) does not fit a Float")
             )
         }
         return narrowed
     }
 
-    static func integer<T: FixedWidthInteger>(_ type: T.Type, _ member: (MarkupView, [any CodingKey]))
+    static func integer<T: FixedWidthInteger>(_ type: T.Type, _ member: MarkupMember)
         throws -> T
     {
-        guard let whole = member.0.markupInteger else {
-            if let text = member.0.markupWideInteger {
+        guard let whole = member.view.markupInteger else {
+            if let text = member.view.markupWideInteger {
                 guard let number = wide(type, text) else {
                     throw DecodingError.dataCorrupted(
-                        DecodingError.Context(codingPath: member.1, debugDescription: "\(text) does not fit \(type)")
+                        DecodingError.Context(codingPath: member.path, debugDescription: "\(text) does not fit \(type)")
                     )
                 }
                 return number
             }
-            throw markupMismatch(type, member.0, member.1, wanted: "an integer")
+            throw markupMismatch(type, member.view, member.path, wanted: "an integer")
         }
         guard let number = T(exactly: whole) else {
             throw DecodingError.dataCorrupted(
-                DecodingError.Context(codingPath: member.1, debugDescription: "\(whole) does not fit \(type)")
+                DecodingError.Context(codingPath: member.path, debugDescription: "\(whole) does not fit \(type)")
             )
         }
         return number
