@@ -11,4 +11,5 @@ Homebrew, built from `Benchmarks/References/toml_tagged.cpp`), never into the lo
 name, and `--known` lists the disagreements already explained, keyed by the input's hash and the verdict, each with its reason. An
 unlisted disagreement fails the run, and so does a listed one that no longer occurs.
 
-Bar: the command fails once on purpose (an emptied known list fails on the `[a.b.cd]` case), then passes; the list's parser is tested.
+Bar: the command fails once on purpose, then passes (done locally on a smoke-sized input, ADR-0019's amendment); the list's
+parser is tested (done). Left: the first scheduled run on record in the diary, and any disagreement it finds explained or fixed.

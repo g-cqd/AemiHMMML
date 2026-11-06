@@ -1,0 +1,4 @@
+# Disagreements with toml++ already explained (ADR-0019), read by `toml-test-adapter differential --known`.
+# One per line: the input's FNV-1a 64 hash, the verdict (different-trees, aemi-accepts, other-accepts), and why after `--`.
+# An unlisted disagreement fails the run; so does a listed one that no input produced.
+e8b8d64c1fb1b7d7 other-accepts -- toml++ lets a dotted key extend a table a header defined; TOML forbids it (inputs/dotted-key-extends-a-header-table.toml)

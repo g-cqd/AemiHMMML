@@ -14,6 +14,12 @@ let package = Package(
             name: "toml-test-adapter",
             dependencies: [.product(name: "AemiTOML", package: "AemiHMMML")],
             swiftSettings: [.swiftLanguageMode(.v6), .treatAllWarnings(as: .error)]
+        ),
+        // The differential's own logic (options, seeding, the known list), tested like any other tool: CI runs it beside toml-test.
+        .testTarget(
+            name: "toml-test-adapterTests",
+            dependencies: ["toml-test-adapter", .product(name: "AemiTOML", package: "AemiHMMML")],
+            swiftSettings: [.swiftLanguageMode(.v6), .treatAllWarnings(as: .error)]
         )
     ]
 )
