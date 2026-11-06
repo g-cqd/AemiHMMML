@@ -1,13 +1,15 @@
 // toml-test's interface (its README, "Implementing a decoder" and "Implementing an encoder"):
 //   toml-test-adapter decode [1.0|1.1]   TOML on stdin, tagged JSON on stdout; exit 1 if the TOML is invalid.
 //   toml-test-adapter encode             tagged JSON on stdin, TOML on stdout; exit 1 if it stands for no TOML document.
+// And the differential against another decoder with the same interface (ADR-0019):
+//   toml-test-adapter differential DECODER [--mutations N] [--report FILE] PATH...
 
 import AemiKernel
 import AemiTOML
 import Foundation
 
 let arguments = CommandLine.arguments.dropFirst()
-let input = Array(FileHandle.standardInput.readDataToEndOfFile())
+var input: [UInt8] { Array(FileHandle.standardInput.readDataToEndOfFile()) }
 
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -96,6 +98,8 @@ switch arguments.first {
         } catch {
             fail("\(error)")
         }
+    case "differential":
+        exit(differential(Array(arguments.dropFirst())))
     case "encode":
         guard let json = try? JSONSerialization.jsonObject(with: Data(input), options: [.fragmentsAllowed]),
             case .table(let table) = tree(json)
@@ -106,5 +110,7 @@ switch arguments.first {
             fail("\(error)")
         }
     default:
-        fail("usage: toml-test-adapter decode [1.0|1.1] | encode")
+        fail(
+            "usage: toml-test-adapter decode [1.0|1.1] | encode | differential DECODER [--mutations N] [--report FILE] PATH..."
+        )
 }

@@ -33,6 +33,7 @@ extension TOMLParser {
 
     /// Takes the replaced values out of their tables, in one pass over the nodes.
     mutating func pruneRetired() {
+        // @lm:accept:next replace-logical -- a retired node and an empty table have no member to prune: walking them changes nothing
         for id in nodes.indices where nodes[id].first >= 0 && nodes[id].parent != Self.retiredParent {
             var member = nodes[id].first
             var last: Int32 = -1
@@ -47,6 +48,7 @@ extension TOMLParser {
                 }
                 member = next
             }
+            // @lm:accept:next negate-condition -- a replacement follows what it replaces, so the last kept member already ends the list
             if last >= 0 { nodes[Int(last)].next = -1 }
             nodes[id].last = last
             nodes[id].count = count

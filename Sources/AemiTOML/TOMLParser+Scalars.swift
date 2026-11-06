@@ -48,9 +48,12 @@ extension TOMLParser {
     /// A decimal integer or float at `start`, unless the bytes may be a date, a time, or a word.
     private func decimalFastPath(at start: Int) -> (Int, TOMLNumbers.Number)? {
         let first = source[start]
+        // @lm:accept:next replace-logical, negate-condition -- a fast path: declined, the full scan reads the same value
         guard Self.isDigit(first) || first == 0x2B || first == 0x2D else { return nil }
         // `YYYY-` and `HH:` are dates and times.
+        // @lm:accept:next negate-condition -- the fast path refuses what is not a decimal number; the full scan reads it
         if start + 4 < source.count, source[start + 4] == 0x2D { return nil }
+        // @lm:accept:next negate-condition -- as above: declining or failing the fast path gives the full scan's answer
         if start + 2 < source.count, source[start + 2] == 0x3A { return nil }
         return TOMLNumbers.decimal(in: source, at: start)
     }
@@ -77,6 +80,7 @@ extension TOMLParser {
         ByteClass.contains(byte, low: 0x07FF_6800_0000_0000, high: 0x07FF_FFFE_87FF_FFFE)
     }
 
+    // @lm:accept:next replace-logical -- it chooses a path (fast decimal, date, time) whose bytes the chosen scan validates again
     static func isDigit(_ byte: UInt8) -> Bool { byte >= 0x30 && byte <= 0x39 }
 
     /// `YYYY-` ahead.
