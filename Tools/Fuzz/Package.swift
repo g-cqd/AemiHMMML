@@ -33,6 +33,11 @@ let package = Package(
             name: "FuzzEditorConfig",
             dependencies: [.product(name: "AemiConfigLines", package: "AemiHMMML")],
             swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .executableTarget(
+            name: "FuzzKDL",
+            dependencies: [.product(name: "AemiKDL", package: "AemiHMMML")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
 )

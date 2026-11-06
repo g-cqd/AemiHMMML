@@ -47,6 +47,11 @@
           "into": ".build/fixtures/editorconfig-core-test"
         },
         {
+          "git": "https://github.com/kdl-org/kdl",
+          "commit": "89c1087d5e7f530de328f18b6a0fad54ca8ea227",
+          "into": ".build/fixtures/kdl"
+        },
+        {
           "git": "https://github.com/actions/starter-workflows",
           "commit": "e3c451d60f119b71caebf13c98ac45da6e15b4b7",
           "into": ".build/fixtures/corpus/actions-starter-workflows"
@@ -123,6 +128,12 @@
       "after": "macos-debug"
     },
     {
+      "id": "kdl-differential",
+      "title": "Conformance · KDL against @bgotink/kdl",
+      "run": "node --version && npm ci --silent --prefix Tools/KDLAdapter/Oracle && swift build -c release --package-path Tools/KDLAdapter --scratch-path .build/kdl-adapter && \"$(swift build -c release --package-path Tools/KDLAdapter --scratch-path .build/kdl-adapter --show-bin-path)/kdl-adapter\" differential --inputs 100000 .build/fixtures/kdl/tests/test_cases/input",
+      "after": "macos-debug"
+    },
+    {
       "id": "toml-differential",
       "title": "Verification · toml++ Differential",
       "run": "(brew list tomlplusplus > /dev/null 2>&1 || brew install --quiet tomlplusplus) && clang++ -std=c++17 -O2 -w -I\"$(brew --prefix)/include\" Benchmarks/References/toml_tagged.cpp -o .build/tomlpp-decoder && swift test --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter-tests && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && \"$A\" differential .build/tomlpp-decoder --mutations 10 --known Tools/TOMLTestAdapter/Differential/known.txt .build/fixtures/toml-test/tests .build/fixtures/corpus Tools/TOMLTestAdapter/Differential/inputs",
@@ -165,8 +176,8 @@
     },
     {
       "id": "fuzz",
-      "title": "Verification · libFuzzer (YAML, TOML, EditorConfig)",
-      "run": ".ci/swift-ci run suites && swift build -c release --package-path Tools/Fuzz --scratch-path .build/fuzz -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library && mkdir -p .build/fuzz-corpus/yaml .build/fuzz-corpus/toml && find .build/fixtures/yaml-test-suite .build/fixtures/corpus -type f \\( -name '*.yaml' -o -name '*.yml' \\) -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/yaml {} + && find .build/fixtures/toml-test/tests .build/fixtures/corpus -type f -name '*.toml' -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/toml {} + && .build/fuzz/release/FuzzYAML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/yaml && .build/fuzz/release/FuzzTOML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/toml && mkdir -p .build/fuzz-corpus/editorconfig && cp .build/fixtures/editorconfig-core-test/*/*.in .build/fuzz-corpus/editorconfig/ && .build/fuzz/release/FuzzEditorConfig -max_total_time=300 -timeout=5 -rss_limit_mb=2048 -max_len=4096 .build/fuzz-corpus/editorconfig",
+      "title": "Verification · libFuzzer (YAML, TOML, EditorConfig, KDL)",
+      "run": ".ci/swift-ci run suites && swift build -c release --package-path Tools/Fuzz --scratch-path .build/fuzz -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library && mkdir -p .build/fuzz-corpus/yaml .build/fuzz-corpus/toml && find .build/fixtures/yaml-test-suite .build/fixtures/corpus -type f \\( -name '*.yaml' -o -name '*.yml' \\) -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/yaml {} + && find .build/fixtures/toml-test/tests .build/fixtures/corpus -type f -name '*.toml' -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/toml {} + && .build/fuzz/release/FuzzYAML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/yaml && .build/fuzz/release/FuzzTOML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/toml && mkdir -p .build/fuzz-corpus/editorconfig && cp .build/fixtures/editorconfig-core-test/*/*.in .build/fuzz-corpus/editorconfig/ && .build/fuzz/release/FuzzEditorConfig -max_total_time=300 -timeout=5 -rss_limit_mb=2048 -max_len=4096 .build/fuzz-corpus/editorconfig && mkdir -p .build/fuzz-corpus/kdl && cp .build/fixtures/kdl/tests/test_cases/input/*.kdl .build/fuzz-corpus/kdl/ && .build/fuzz/release/FuzzKDL -max_total_time=600 -timeout=5 -rss_limit_mb=2048 -max_len=4096 .build/fuzz-corpus/kdl",
       "os": "linux",
       "cadence": [
         "nightly",

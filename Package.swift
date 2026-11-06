@@ -40,6 +40,7 @@ let package = Package(
         .library(name: "AemiYAML", targets: ["AemiYAML"]),
         .library(name: "AemiFrontMatter", targets: ["AemiFrontMatter"]),
         .library(name: "AemiConfigLines", targets: ["AemiConfigLines"]),
+        .library(name: "AemiKDL", targets: ["AemiKDL"]),
         .library(name: "AemiHMMML", targets: ["AemiHMMML"])
     ],
     dependencies: [aemiDependency, aemiJSONDependency, collectionsDependency],
@@ -47,6 +48,13 @@ let package = Package(
         // Line-oriented configuration formats (plan phase 8): EditorConfig first, with its core's test suite as the oracle.
         .target(name: "AemiConfigLines", swiftSettings: strictSettings),
         .testTarget(name: "AemiConfigLinesTests", dependencies: ["AemiConfigLines"], swiftSettings: strictSettings),
+        // KDL 2.0 (roadmap 0008), with the language's test suite as the oracle (ADR-0026); aemi's BigInt for its integers.
+        .target(
+            name: "AemiKDL",
+            dependencies: [.product(name: "AemiKernel", package: "aemi")],
+            swiftSettings: strictSettings
+        ),
+        .testTarget(name: "AemiKDLTests", dependencies: ["AemiKDL"], swiftSettings: strictSettings),
         .target(
             name: "AemiHMMMLCore",
             dependencies: [

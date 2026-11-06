@@ -23,6 +23,7 @@ in `docs/adr/`; the open work in `docs/roadmap/`.
 | `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode, `YAMLEmitter` and `YAMLEncoder`, YAML 1.1's schema with merge keys, opt-in | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
 | `AemiFrontMatter` | Heads of Markdown and similar texts (`---` YAML, `+++` TOML, a leading JSON object), streaming-aware, read in place, for AemiMarkdown, AemiMermaid and ask (done) | one fixture per rule, each from Jekyll's, Hugo's, Mermaid's or ask's code (ADR-0015) |
 | `AemiConfigLines` | EditorConfig: files, globs and the properties of a path; Java properties; git config; INI as Python's `configparser` reads it (done); then `.env` | [editorconfig-core-test](https://github.com/editorconfig/editorconfig-core-test) (203 cases); OpenJDK's `Properties`; git; `configparser` |
+| `AemiKDL` | KDL 2.0: documents, and the canonical form the language's test suite prints | [kdl-org/kdl](https://github.com/kdl-org/kdl) `tests/test_cases` (338 cases); @bgotink/kdl |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 
 Later, each with its own oracle: EditorConfig, `.env`, properties and INI dialects, KDL 2.0, property lists. JSON, JSON5 and JSONC belong to

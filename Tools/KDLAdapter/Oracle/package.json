@@ -1,0 +1,9 @@
+{
+  "name": "kdl-oracle",
+  "private": true,
+  "description": "@bgotink/kdl as the oracle for AemiKDL's differential (Tools/KDLAdapter, ADR-0026)",
+  "type": "module",
+  "dependencies": {
+    "@bgotink/kdl": "0.4.1"
+  }
+}

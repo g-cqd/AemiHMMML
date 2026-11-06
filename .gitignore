@@ -8,3 +8,4 @@ DerivedData/
 *.profraw
 *.profdata
 .fixtures
+node_modules/
