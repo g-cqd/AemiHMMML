@@ -32,6 +32,9 @@ public protocol MarkupValue: Sendable {
     var markupBool: Bool? { get }
     /// An integer that fits 64 signed bits.
     var markupInteger: Int64? { get }
+    /// An integer too wide for 64 signed bits, as written (decimal with its sign, or `0x`/`0o`): a `UInt64` property may still hold
+    /// it. Nil for a format whose integers are 64-bit (TOML).
+    var markupWideInteger: String? { get }
     /// A float (not an integer: the decoder converts those it may).
     var markupFloat: Double? { get }
     /// What a `String` property reads.
@@ -47,4 +50,8 @@ public protocol MarkupValue: Sendable {
 
     /// A format's own value types (`TOMLTree`, …) read as themselves; nil to decode `type` through its `init(from:)`.
     static func decodeOwnType<T>(_ type: T.Type, from value: Self, at path: [any CodingKey]) throws -> T?
+}
+
+extension MarkupValue {
+    public var markupWideInteger: String? { nil }
 }

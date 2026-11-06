@@ -26,9 +26,9 @@ public struct TOMLEncoder: Sendable {
 
     /// The table `value` encodes as, before it is written.
     public func table(_ value: some Encodable) throws -> TOMLTable {
-        let root = TOMLEncodingNode(codingPath: [])
+        let root = MarkupEncodingNode<TOMLEncodingFormat>(codingPath: [])
         try root.encode(value, userInfo: userInfo)
-        guard case .table(let table) = try root.tree() else {
+        guard case .table(let table) = try TOMLEncodingFormat.tree(root) else {
             throw EncodingError.invalidValue(
                 value,
                 EncodingError.Context(

@@ -1,17 +1,17 @@
-extension TOMLEncoding {
+extension MarkupEncoding {
     struct Unkeyed: UnkeyedEncodingContainer {
-        let encoding: TOMLEncoding
+        let encoding: MarkupEncoding
         var codingPath: [any CodingKey] { encoding.node.codingPath }
         var count: Int { encoding.node.elementCount }
 
-        private func element() -> TOMLEncodingNode { encoding.node.appendElement() }
+        private func element() -> MarkupEncodingNode<Format> { encoding.node.appendElement() }
 
-        /// Recorded as an unset element, which ``TOMLEncodingNode/tree()`` refuses with the element's path: TOML has no null.
-        mutating func encodeNil() throws { _ = element() }
-        mutating func encode(_ value: Bool) throws { element().set(.boolean(value)) }
-        mutating func encode(_ value: String) throws { element().set(.string(value)) }
-        mutating func encode(_ value: Double) throws { element().set(.float(value)) }
-        mutating func encode(_ value: Float) throws { element().set(.float(Double(value))) }
+        /// The format's null; in one without null an unset element, which the format refuses with the element's path.
+        mutating func encodeNil() throws { element().setNull() }
+        mutating func encode(_ value: Bool) throws { element().set(Format.leaf(value)) }
+        mutating func encode(_ value: String) throws { element().set(Format.leaf(value)) }
+        mutating func encode(_ value: Double) throws { element().set(Format.leaf(value)) }
+        mutating func encode(_ value: Float) throws { element().set(Format.leaf(Double(value))) }
         mutating func encode(_ value: Int) throws { try integer(value) }
         mutating func encode(_ value: Int8) throws { try integer(value) }
         mutating func encode(_ value: Int16) throws { try integer(value) }
@@ -28,36 +28,34 @@ extension TOMLEncoding {
 
         private func integer(_ value: some BinaryInteger) throws {
             let child = element()
-            child.set(try TOMLEncoding.integer(value, at: child.codingPath))
+            child.set(try Format.integer(value, at: child.codingPath))
         }
 
         mutating func nestedContainer<NestedKey: CodingKey>(keyedBy keyType: NestedKey.Type) -> KeyedEncodingContainer<
             NestedKey
         > {
-            TOMLEncoding(node: element(), userInfo: encoding.sendableUserInfo).container(keyedBy: keyType)
+            encoding.encoder(for: element()).container(keyedBy: keyType)
         }
 
         mutating func nestedUnkeyedContainer() -> any UnkeyedEncodingContainer {
-            TOMLEncoding(node: element(), userInfo: encoding.sendableUserInfo).unkeyedContainer()
+            encoding.encoder(for: element()).unkeyedContainer()
         }
 
-        mutating func superEncoder() -> any Encoder {
-            TOMLEncoding(node: element(), userInfo: encoding.sendableUserInfo)
-        }
+        mutating func superEncoder() -> any Encoder { encoding.encoder(for: element()) }
     }
 
     struct Single: SingleValueEncodingContainer {
-        let encoding: TOMLEncoding
+        let encoding: MarkupEncoding
         var codingPath: [any CodingKey] { encoding.node.codingPath }
 
-        private var node: TOMLEncodingNode { encoding.node }
+        private var node: MarkupEncodingNode<Format> { encoding.node }
 
-        /// Leaves the value unset: a property that encodes nil is left out; an element is refused.
-        mutating func encodeNil() throws { node.reset() }
-        mutating func encode(_ value: Bool) throws { node.set(.boolean(value)) }
-        mutating func encode(_ value: String) throws { node.set(.string(value)) }
-        mutating func encode(_ value: Double) throws { node.set(.float(value)) }
-        mutating func encode(_ value: Float) throws { node.set(.float(Double(value))) }
+        /// The format's null; in one without null, unset: a property is left out, an element refused.
+        mutating func encodeNil() throws { node.setNull() }
+        mutating func encode(_ value: Bool) throws { node.set(Format.leaf(value)) }
+        mutating func encode(_ value: String) throws { node.set(Format.leaf(value)) }
+        mutating func encode(_ value: Double) throws { node.set(Format.leaf(value)) }
+        mutating func encode(_ value: Float) throws { node.set(Format.leaf(Double(value))) }
         mutating func encode(_ value: Int) throws { try integer(value) }
         mutating func encode(_ value: Int8) throws { try integer(value) }
         mutating func encode(_ value: Int16) throws { try integer(value) }
@@ -73,7 +71,7 @@ extension TOMLEncoding {
         }
 
         private func integer(_ value: some BinaryInteger) throws {
-            node.set(try TOMLEncoding.integer(value, at: codingPath))
+            node.set(try Format.integer(value, at: codingPath))
         }
     }
 }

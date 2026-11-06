@@ -1,3 +1,4 @@
+internal import AemiHMMMLCore
 internal import AemiKernel
 
 /// With ``TOMLEncoder`` and ``TOMLDecoder`` a tree is written and read as itself. Any other coder sees plain values: a table as a
@@ -51,12 +52,12 @@ extension TOMLTree: Codable {
 
 extension TOMLTable: Codable {
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: TOMLCodingKey.self)
-        for (key, value) in entries { try container.encode(value, forKey: TOMLCodingKey(stringValue: key)) }
+        var container = encoder.container(keyedBy: MarkupCodingKey.self)
+        for (key, value) in entries { try container.encode(value, forKey: MarkupCodingKey(stringValue: key)) }
     }
 
     public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: TOMLCodingKey.self)
+        let container = try decoder.container(keyedBy: MarkupCodingKey.self)
         self.init()
         for key in container.allKeys { self[key.stringValue] = try container.decode(TOMLTree.self, forKey: key) }
     }
