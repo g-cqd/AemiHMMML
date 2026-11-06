@@ -296,6 +296,18 @@ struct FrontMatterReadTests {
         #expect(String(decoding: text[title.sourceRange], as: UTF8.self) == "Notes")
     }
 
+    @Test("a parser's buffer locates, streams and reads as an array does")
+    func contiguous() throws {
+        let text = "---\ntitle: Notes\n---\nbody"
+        let array = Array(text.utf8)
+        let buffer = ContiguousArray(text.utf8)
+        #expect(FrontMatter.locate(in: buffer) == FrontMatter.locate(in: array))
+        var stream = FrontMatterStream()
+        #expect(stream.update(buffer, complete: true) == FrontMatter.locate(in: array))
+        let head = try #require(FrontMatter(in: array))
+        #expect(try head.read(from: buffer).value?.yaml?.root["title"]?.string == "Notes")
+    }
+
     @Test("a TOML head and a JSON head read as theirs")
     func tomlAndJSON() throws {
         let toml = Array("+++\ntitle = \"Notes\"\n[params]\nn = 2\n+++\nbody".utf8)

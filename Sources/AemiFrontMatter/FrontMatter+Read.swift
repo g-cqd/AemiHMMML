@@ -32,6 +32,23 @@ extension FrontMatter {
         policy: ErrorPolicy = .strict,
         limits: MarkupLimits = .default
     ) throws(Diagnostic) -> Reading {
+        try reading(source, policy: policy, limits: limits)
+    }
+
+    /// ``read(from:policy:limits:)`` over a parser's buffer.
+    public func read(
+        from source: ContiguousArray<UInt8>,
+        policy: ErrorPolicy = .strict,
+        limits: MarkupLimits = .default
+    ) throws(Diagnostic) -> Reading {
+        try reading(source, policy: policy, limits: limits)
+    }
+
+    private func reading<Bytes: RandomAccessCollection<UInt8>>(
+        _ source: Bytes,
+        policy: ErrorPolicy,
+        limits: MarkupLimits
+    ) throws(Diagnostic) -> Reading where Bytes.Index == Int {
         var diagnostics = Diagnostics(policy: policy, capacity: limits.diagnostics)
         if !isClosed {
             try diagnostics.report(

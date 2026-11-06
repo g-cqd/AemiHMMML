@@ -13,8 +13,26 @@ extension FrontMatter {
         options: FrontMatterOptions = FrontMatterOptions(),
         complete: Bool = true
     ) -> FrontMatterLocation {
-        var resume = FrontMatterLocator.Resume()
+        var resume = Resume()
         return FrontMatterLocator(source: source, options: options, complete: complete).locate(&resume)
+    }
+
+    /// ``locate(in:options:complete:)`` over a parser's buffer.
+    public static func locate(
+        in source: ContiguousArray<UInt8>,
+        options: FrontMatterOptions = FrontMatterOptions(),
+        complete: Bool = true
+    ) -> FrontMatterLocation {
+        var resume = Resume()
+        return FrontMatterLocator(source: source, options: options, complete: complete).locate(&resume)
+    }
+
+    /// Where a streaming search stopped: the first line of the head not known not to close it, and the brace count of a JSON head.
+    struct Resume: Sendable, Hashable {
+        var line = 0
+        var jsonIndex = 0
+        var depth = 0
+        var inString = false
     }
 }
 
@@ -24,7 +42,7 @@ public struct FrontMatterStream: Sendable {
     public let options: FrontMatterOptions
     /// The last answer; final once it is ``FrontMatterLocation/none`` or ``FrontMatterLocation/closed(_:)``.
     public private(set) var location = FrontMatterLocation.undecided
-    private var resume = FrontMatterLocator.Resume()
+    private var resume = FrontMatter.Resume()
 
     public init(options: FrontMatterOptions = FrontMatterOptions()) {
         self.options = options
@@ -32,26 +50,31 @@ public struct FrontMatterStream: Sendable {
 
     /// What the start of `source` holds; `source` extends the text of the last call (same bytes, more after them).
     public mutating func update(_ source: [UInt8], complete: Bool) -> FrontMatterLocation {
+        update(FrontMatterLocator(source: source, options: options, complete: complete))
+    }
+
+    /// ``update(_:complete:)`` over a parser's buffer.
+    public mutating func update(_ source: ContiguousArray<UInt8>, complete: Bool) -> FrontMatterLocation {
+        update(FrontMatterLocator(source: source, options: options, complete: complete))
+    }
+
+    private mutating func update(_ locator: FrontMatterLocator<some RandomAccessCollection<UInt8>>)
+        -> FrontMatterLocation
+    {
         switch location {
             case .none, .closed: return location
             case .undecided, .open:
-                location = FrontMatterLocator(source: source, options: options, complete: complete).locate(&resume)
+                location = locator.locate(&resume)
                 return location
         }
     }
 }
 
-/// The rules of ADR-0015, one function each.
-struct FrontMatterLocator {
-    /// Where a streaming search stopped: the first line of the head not known not to close it, and the brace count of a JSON head.
-    struct Resume: Sendable, Hashable {
-        var line = 0
-        var jsonIndex = 0
-        var depth = 0
-        var inString = false
-    }
+/// The rules of ADR-0015, one function each, over bytes indexed from zero.
+struct FrontMatterLocator<Bytes: RandomAccessCollection<UInt8>> where Bytes.Index == Int {
+    typealias Resume = FrontMatter.Resume
 
-    let source: [UInt8]
+    let source: Bytes
     let options: FrontMatterOptions
     let complete: Bool
 
@@ -62,9 +85,10 @@ struct FrontMatterLocator {
     func locate(_ resume: inout Resume) -> FrontMatterLocation {
         // A byte-order mark (Jekyll reads `bom|utf-8`; ask drops it), whole or, while streaming, begun.
         var start = 0
-        if source.starts(with: [0xEF, 0xBB, 0xBF]) {
+        let mark: [UInt8] = [0xEF, 0xBB, 0xBF]
+        if source.starts(with: mark) {
             start = 3
-        } else if count < 3, [0xEF, 0xBB, 0xBF].starts(with: source), !source.isEmpty {
+        } else if count < 3, mark.starts(with: source), !source.isEmpty {
             return ended
         }
         if options.leadingBlankLines { start = afterBlankLines(from: start) }
