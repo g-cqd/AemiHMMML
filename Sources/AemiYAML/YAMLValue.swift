@@ -1,3 +1,5 @@
+public import AemiKernel
+
 /// One node of a ``YAMLDocument``, aliases followed: a view, cheap to copy, valid while the document's storage lives.
 public struct YAMLValue: Sendable {
     public enum Kind: Sendable, Hashable {
@@ -118,6 +120,12 @@ public struct YAMLValue: Sendable {
 
     /// How a scalar was written (plain, quoted, literal `|`, folded `>`); nil for a collection.
     public var scalarStyle: YAMLScalarStyle? { node.kind == .scalar ? node.scalar.style : nil }
+
+    /// A YAML 1.1 timestamp (``YAMLScalarKind/timestamp``), read; nil for any other value.
+    public var dateTime: RFC3339DateTime? {
+        guard node.kind == .scalar, node.resolved.kind == .timestamp else { return nil }
+        return YAML11Timestamp.parse(bytes) ?? nil
+    }
 
     public var isNull: Bool { node.kind == .scalar && node.resolved.kind == .null }
 

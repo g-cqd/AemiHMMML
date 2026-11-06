@@ -102,7 +102,10 @@ struct YAMLComposer {
                 Diagnostic(
                     .yamlResolution,
                     at: event.range,
-                    "the scalar's value does not fit \(tag.map { "its tag \($0)" } ?? "the JSON schema"), read as a string"
+                    "the scalar's value does not fit "
+                        + (tag.map { "its tag \($0)" }
+                            ?? (options.schema == .json ? "the JSON schema" : "YAML 1.1's timestamp type"))
+                        + ", read as a string"
                 )
             )
             resolved = YAMLResolved(kind: .string)

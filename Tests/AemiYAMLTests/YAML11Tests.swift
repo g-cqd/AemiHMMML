@@ -1,4 +1,5 @@
 import AemiHMMMLCore
+import AemiKernel
 import Testing
 
 @testable import AemiYAML
@@ -87,6 +88,93 @@ struct YAML11Tests {
         }
         // Under the core schema, `<<` is a key like any other.
         #expect(try Self.value("<<: {a: 1}", YAMLOptions())["<<"]?["a"]?.integer == 1)
+    }
+
+    @Test(
+        "timestamps: the type page's examples are one instant in four spellings, a date is its midnight UTC, near misses are strings"
+    )
+    func timestamps() throws {
+        let instant = try #require(try Self.value("2001-12-15T02:59:43.1Z").dateTime)
+        #expect(instant.unixSeconds == 1_008_385_183 && instant.nanosecond == 100_000_000 && instant.offsetMinutes == 0)
+        for text in [
+            "2001-12-14t21:59:43.10-05:00", "2001-12-14 21:59:43.10 -5", "2001-12-15 2:59:43.10",
+            "2001-12-15\t2:59:43.1 Z"
+        ] {
+            let value = try Self.value(text)
+            #expect(value.kind == .scalar(.timestamp), "\(text)")
+            #expect(
+                value.dateTime?.unixSeconds == instant.unixSeconds && value.dateTime?.nanosecond == instant.nanosecond,
+                "\(text)"
+            )
+            #expect(value.text == text, "\(text)")
+        }
+        let date = try #require(try Self.value("2002-12-14").dateTime)
+        #expect(date.unixSeconds == 1_039_824_000 && date.offsetMinutes == 0)
+        #expect(try Self.value("2001-12-14 21:59:43 +05:30").dateTime?.offsetMinutes == 330)
+        #expect(try Self.value("2001-12-14 21:59:43.123456789123").dateTime?.nanosecond == 123_456_789)
+        #expect(try Self.value("2001-12-14 21:59:43.").dateTime?.nanosecond == 0)
+        let nearMisses = [
+            "2002-1-14", "02002-12-14", "2002/12/14", "2002-12-14T", "2002-12-14 21:59", "2002-12-14T21:59:43 +",
+            "2002-12-14T21:59:43+5:3", "2002-12-14T21:59:43Zx", "2002-12-14T21:5:43", "2002-12-14T21:59:43 x"
+        ]
+        for text in nearMisses { #expect(try Self.value(text).kind == .scalar(.string), "\(text)") }
+        #expect(try Self.value("2002-12-14", YAMLOptions()).kind == .scalar(.string))
+        #expect(try Self.value("2002-12-14", YAMLOptions()).dateTime == nil)
+        #expect(try Self.value("!!timestamp 2002-12-14").kind == .scalar(.timestamp))
+        #expect(try Self.value("'2002-12-14'").kind == .scalar(.string))
+        var emitter = YAMLEmitter()
+        try emitter.emit(YAMLDocument(parsing: "at: 2001-12-14 21:59:43.10 -5\n", options: Self.options))
+        let again = try YAMLDocument(parsing: emitter.output, options: Self.options)
+        #expect(again.root["at"]?.dateTime?.unixSeconds == instant.unixSeconds)
+    }
+
+    @Test(
+        "a timestamp that names no instant is refused, or read as a string when recovering; one tagged and wrong is refused"
+    )
+    func impossibleTimestamps() throws {
+        for text in [
+            "2001-02-29", "2001-13-01", "2001-12-14 24:00:00", "2001-12-14 23:60:00", "2001-12-14 23:59:60",
+            "2001-12-14 23:59:59 +24", "!!timestamp yesterday", "!!timestamp '2001-12-14 21:59:43 '"
+        ] {
+            let error = #expect(throws: Diagnostic.self, "\(text)") { try Self.value(text) }
+            #expect(error?.code == .yamlResolution, "\(text)")
+        }
+        #expect(try Self.value("2000-02-29").dateTime != nil)
+        var recovering = Self.options
+        recovering.policy = .recovering
+        let document = try YAMLDocument(parsing: "at: 2001-02-29\n", options: recovering)
+        #expect(document.root["at"]?.string == "2001-02-29")
+        #expect(document.diagnostics.recorded.map(\.code) == [.yamlResolution])
+    }
+
+    @Test("timestamp keys compare by instant: two spellings of one are duplicates, two instants are not")
+    func timestampKeys() throws {
+        let error = #expect(throws: Diagnostic.self) {
+            try Self.value("2001-12-15T02:59:43.1Z: a\n2001-12-14 21:59:43.10 -5: b\n")
+        }
+        #expect(error?.code == .yamlDuplicateKey)
+        #expect(throws: Diagnostic.self) { try Self.value("2002-12-14: a\n2002-12-14 0:00:00: b\n") }
+        let distinct = try Self.value("2002-12-14: a\n2002-12-15: b\n2002-12-14 0:00:01: c\n")
+        #expect(distinct.count == 3)
+        #expect(try Self.value("2002-12-14: a\n2002-12-14 0:00:00: b\n", YAMLOptions()).count == 2)
+    }
+
+    @Test("a timestamp decodes into a date-time, and a String reads its text")
+    func decodedTimestamps() throws {
+        struct Event: Decodable {
+            var at: RFC3339DateTime
+            var day: RFC3339DateTime
+            var label: String
+        }
+        let decoder = YAMLDecoder(options: Self.options)
+        let event = try decoder.decode(
+            Event.self,
+            from: "at: 2001-12-14 21:59:43.10 -5\nday: 2002-12-14\nlabel: 2002-12-14\n"
+        )
+        #expect(
+            event.at.unixSeconds == 1_008_385_183 && event.day.unixSeconds == 1_039_824_000
+                && event.label == "2002-12-14"
+        )
     }
 
     @Test(

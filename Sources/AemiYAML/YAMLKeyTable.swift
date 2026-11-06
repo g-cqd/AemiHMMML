@@ -39,6 +39,7 @@ struct YAMLKeyTable {
                 combine(value, into: &hasher)
             case .int where resolved.wide: combine(value, into: &hasher)
             case .float: hasher.combine(Double(bitPattern: resolved.payload) == 0 ? 0 : resolved.payload)
+            case .timestamp: hasher.combine(YAML11Timestamp.identity(value))
             default: hasher.combine(resolved.payload)
         }
         return hasher.finalize()
@@ -73,6 +74,11 @@ struct YAMLKeyTable {
                         guard Double(bitPattern: a.resolved.payload) == Double(bitPattern: b.resolved.payload) else {
                             return false
                         }
+                    } else if a.resolved.kind == .timestamp {
+                        guard
+                            YAML11Timestamp.identity(composer.scalarValue(a.scalar))
+                                == YAML11Timestamp.identity(composer.scalarValue(b.scalar))
+                        else { return false }
                     } else if a.resolved.payload != b.resolved.payload {
                         return false
                     }

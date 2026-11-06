@@ -14,6 +14,7 @@ extension YAMLDocument.Storage: MarkupStorage {
             case .scalar(.int): .integer
             case .scalar(.float): .float
             case .scalar(.string): .string
+            case .scalar(.timestamp): .dateTime
             case .sequence: .sequence
             case .mapping: .mapping
         }
@@ -31,6 +32,7 @@ extension YAMLDocument.Storage: MarkupStorage {
     func markupDateTime(_ node: Int32) -> RFC3339DateTime? {
         let scalar = value(node)
         guard scalar.node.kind == .scalar, !scalar.isNull else { return nil }
+        if let moment = scalar.dateTime { return moment }
         return RFC3339DateTime(parsing: scalar.bytes, syntax: [.toml11, .spaceSeparator])
     }
 

@@ -2,7 +2,8 @@ internal import AemiKernel
 
 /// YAML 1.1's types (yaml.org/type, 2005), for ``YAMLSchema/yaml11``: what most YAML in the wild was written against, chosen by
 /// name and never guessed (ADR-0005, ADR-0018). The expressions are the type pages', as PyYAML reads them (a float needs its point,
-/// so `1e3` is a string); booleans include `y` and `n`, which the type page lists and PyYAML leaves out. Timestamps are strings.
+/// so `1e3` is a string); booleans include `y` and `n`, which the type page lists and PyYAML leaves out. Timestamps resolve by
+/// ``YAML11Timestamp``; one that names no instant (`2001-02-30`) does not fit the schema.
 enum YAML11Resolver {
     static func resolve(tag: String?, style: YAMLScalarStyle, value: ArraySlice<UInt8>) -> YAMLResolved? {
         switch tag {
@@ -11,11 +12,14 @@ enum YAML11Resolver {
             case YAMLResolver.boolTag?: return bool(value)
             case YAMLResolver.intTag?: return int(value)
             case YAMLResolver.floatTag?: return float(value) ?? int(value).map(asFloat)
+            case YAMLResolver.timestampTag?: return timestamp(value) ?? nil
             case .some: return YAMLResolved(kind: .string)
             case nil: break
         }
         guard style == .plain else { return YAMLResolved(kind: .string) }
-        return null(value) ?? bool(value) ?? int(value) ?? float(value) ?? YAMLResolved(kind: .string)
+        if let resolved = null(value) ?? bool(value) ?? int(value) ?? float(value) { return resolved }
+        // A timestamp in form that names no instant fits no type: the composer refuses it.
+        return timestamp(value) ?? YAMLResolved(kind: .string)
     }
 
     /// `~`, `null`, `Null`, `NULL`, and the empty scalar.
@@ -161,6 +165,11 @@ enum YAML11Resolver {
             }
         }
         return sawDigit ? .some(magnitude) : nil
+    }
+
+    /// `.timestamp` for a valid one, `.some(nil)` for one in form that names no instant, nil for anything else.
+    private static func timestamp(_ value: ArraySlice<UInt8>) -> YAMLResolved?? {
+        YAML11Timestamp.parse(value).map { moment in moment.map { _ in YAMLResolved(kind: .timestamp) } }
     }
 
     private static func matches(_ value: ArraySlice<UInt8>, _ words: [String]) -> Bool {

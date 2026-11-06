@@ -87,7 +87,7 @@ struct JSONReader {
                 case .scalar(.null): self = .null
                 case .scalar(.bool): self = .bool(value.bool ?? false)
                 case .scalar(.int), .scalar(.float): self = .number(value.double ?? Double(value.text ?? "") ?? .nan)
-                case .scalar(.string): self = .string(value.string ?? "")
+                case .scalar(.string), .scalar(.timestamp): self = .string(value.text ?? "")
                 case .sequence: self = .array(value.elements.map(Value.init))
                 case .mapping:
                     var members: [String: Value] = [:]

@@ -68,6 +68,8 @@ enum YAMLJSON {
             case .scalar(.int): value.integer.map(JSONValue.int) ?? .number(Double(value.text ?? "") ?? .nan)
             case .scalar(.float): .number(value.double ?? .nan)
             case .scalar(.string): .string(value.string ?? "")
+            // JSON has no date: a YAML 1.1 timestamp is its text, as written.
+            case .scalar(.timestamp): .string(value.text ?? "")
         }
     }
 

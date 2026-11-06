@@ -19,7 +19,7 @@ and it is never the default: `no` read as false (the "Norway problem") and GitHu
   - Integers: binary `0b`, octal with a leading `0`, decimal, hexadecimal, and base 60 (`190:20:30`), all with `_` ignored. They
     are unbounded as in the core schema, so past 64 bits they are "wide".
   - Floats: a point is required (`1e3` is a string), an exponent's sign is required, plus base 60 and `.inf`/`.nan`.
-  - Tags (`!!bool yes`) resolve by the same rules. Timestamps are not built: they read as strings.
+  - Tags (`!!bool yes`) resolve by the same rules. Timestamps were left as strings here; ADR-0020 builds them.
 - **Merge keys** (yaml.org/type/merge): a plain `<<` key (or one tagged `!!merge`) whose value is a mapping or a sequence of
   mappings.
   - When the mapping closes, the merge pairs leave it, and each named mapping's pairs whose keys it does not have are added, earlier

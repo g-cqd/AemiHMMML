@@ -161,5 +161,10 @@ struct YAMLProjectionTests {
         let event = try YAMLDecoder().decode(Event.self, from: "at: 2023-11-14T22:13:20.5Z")
         #expect(event.at == Date(timeIntervalSince1970: 1_700_000_000.5))
         #expect(throws: DecodingError.self) { try YAMLDecoder().decode(Event.self, from: "at: 2023-11-14") }
+        // YAML 1.1's date is its midnight UTC; JSON, which has no date, keeps a timestamp's text.
+        let day = try YAMLDecoder(options: YAMLOptions(schema: .yaml11)).decode(Event.self, from: "at: 2023-11-14")
+        #expect(day.at == Date(timeIntervalSince1970: 1_699_920_000))
+        let document = try YAMLDocument(parsing: "at: 2001-12-14 21:59:43.10 -5", options: YAMLOptions(schema: .yaml11))
+        #expect(document.json == ["at": "2001-12-14 21:59:43.10 -5"])
     }
 }

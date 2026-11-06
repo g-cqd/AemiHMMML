@@ -12,7 +12,7 @@ public enum YAMLSchema: Sendable, Hashable {
     case core
     /// YAML 1.1's types (yaml.org/type), opt-in (ADR-0018): `yes`/`no`/`on`/`off`/`y`/`n` booleans (the "Norway problem", and
     /// GitHub's `on:` key, are why it is never the default), binary, octal (`012`) and base 60 integers, `_` in numbers, and merge
-    /// keys (`<<`). Timestamps are not built: they read as strings.
+    /// keys (`<<`), and timestamps (``YAMLScalarKind/timestamp``).
     case yaml11
 }
 
@@ -23,6 +23,8 @@ public enum YAMLScalarKind: Sendable, Hashable {
     case int
     case float
     case string
+    /// YAML 1.1's timestamp (only under ``YAMLSchema/yaml11``): the text is kept, and read by ``YAMLValue/dateTime``.
+    case timestamp
 }
 
 /// A resolved scalar: its kind, and for a bool, an integer that fits 64 bits, or a float, its bits.
@@ -39,6 +41,7 @@ enum YAMLResolver {
     static let boolTag = "tag:yaml.org,2002:bool"
     static let intTag = "tag:yaml.org,2002:int"
     static let floatTag = "tag:yaml.org,2002:float"
+    static let timestampTag = "tag:yaml.org,2002:timestamp"
 
     /// The kind of a scalar with `tag` (resolved; nil when none) and `style`, whose value is `value`. Nil when the value does
     /// not fit what its tag (or, under the JSON schema, its plain form) requires.
