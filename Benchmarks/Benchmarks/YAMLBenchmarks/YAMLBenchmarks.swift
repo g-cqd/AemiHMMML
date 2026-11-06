@@ -64,4 +64,33 @@ nonisolated(unsafe) let benchmarks = {
             }
         }
     }
+    // Codable on 400 generated Deployments (about 300 KB), beside Yams. Both must read the list, and read it alike, or nothing is
+    // measured: a benchmark of failures measures nothing.
+    let manifests = deploymentList(count: 400)
+    let manifestText = String(decoding: manifests, as: UTF8.self)
+    guard let list = try? AemiYAML.YAMLDecoder().decode(DeploymentList.self, from: manifests),
+        list == (try? Yams.YAMLDecoder().decode(DeploymentList.self, from: manifestText)), list.items.count == 400,
+        let written = try? AemiYAML.YAMLEncoder().encode(list),
+        (try? AemiYAML.YAMLDecoder().decode(DeploymentList.self, from: written)) == list
+    else { fatalError("the generated Deployments do not decode alike in AemiYAML and Yams, or do not read back") }
+    Benchmark("yaml/decode/manifests/AemiYAML") { benchmark in
+        for _ in benchmark.scaledIterations {
+            blackHole(try? AemiYAML.YAMLDecoder().decode(DeploymentList.self, from: manifests))
+        }
+    }
+    Benchmark("yaml/decode/manifests/Yams") { benchmark in
+        for _ in benchmark.scaledIterations {
+            blackHole(try? Yams.YAMLDecoder().decode(DeploymentList.self, from: manifestText))
+        }
+    }
+    Benchmark("yaml/encode/manifests/AemiYAML") { benchmark in
+        for _ in benchmark.scaledIterations {
+            blackHole(try? AemiYAML.YAMLEncoder().encode(list))
+        }
+    }
+    Benchmark("yaml/encode/manifests/Yams") { benchmark in
+        for _ in benchmark.scaledIterations {
+            blackHole(try? Yams.YAMLEncoder().encode(list))
+        }
+    }
 }
