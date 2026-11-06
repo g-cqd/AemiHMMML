@@ -62,6 +62,20 @@ extension YAMLCorpusTests {
         #expect(accepted.isEmpty, "listed as refused but composed: \(accepted)")
     }
 
+    @Test("under YAML 1.1's schema every corpus file composes, but the five listed")
+    func yaml11() throws {
+        var refused: [String] = []
+        for file in try YAMLCorpus.files() {
+            let source = Array(try Data(contentsOf: YAMLCorpus.root.appendingPathComponent(file)))
+            do {
+                _ = try YAMLDocument.documents(parsing: source, options: YAMLOptions(schema: .yaml11))
+            } catch {
+                if Self.notComposable[file] == nil { refused.append("\(file): \(error)") }
+            }
+        }
+        #expect(refused.isEmpty, "\(refused)")
+    }
+
     @Test(
         "in recovering mode every corpus file composes; only the listed ones have diagnostics, duplicate keys and nothing else"
     )

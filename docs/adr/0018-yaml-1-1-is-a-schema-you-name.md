@@ -28,5 +28,5 @@ and it is never the default: `no` read as false (the "Norway problem") and GitHu
 
 The type tables in every base and spelling; strings that only look like numbers; the yaml.org merge example's four maps equal;
 merge errors, recovering, and the expansion bound; a merged document written and read again. Every corpus file composes under
-`yaml11` but the five Kubernetes files with duplicate keys, including Compose files with `<<: *defaults`. FuzzYAML composes
-under `yaml11` too: clean for 362,967 runs.
+`yaml11` but the five Kubernetes files with duplicate keys. The corpus holds almost no merge keys (one file mentions `<<`), so
+merges are checked by the tests and by FuzzYAML, which composes under `yaml11` too: clean for 362,967 runs.
