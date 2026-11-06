@@ -10,6 +10,7 @@ extension YAMLScanner {
         let first = !tokenOnLine
         let start = index
         let startLine = line
+        openQuoteStart = start
         index += 1
         let textStart = index
         while true {
@@ -41,6 +42,7 @@ extension YAMLScanner {
         }
         let textEnd = index
         index += 1
+        openQuoteStart = -1
         // Characters only quoted scalars may hold, inside this one.
         while quotedOnlyNext < quotedOnly.count, quotedOnly[quotedOnlyNext] >= textStart,
             quotedOnly[quotedOnlyNext] < textEnd

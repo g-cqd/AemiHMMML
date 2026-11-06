@@ -1,3 +1,4 @@
+import AemiHMMMLCore
 import Foundation
 import Testing
 
@@ -59,6 +60,18 @@ extension YAMLCorpusTests {
         let accepted = Self.notComposable.keys.filter { refused[$0] == nil }.sorted()
         #expect(unexpected.isEmpty, "\(unexpected.map { "\($0): \(refused[$0] ?? "")" }.joined(separator: "\n"))")
         #expect(accepted.isEmpty, "listed as refused but composed: \(accepted)")
+    }
+
+    @Test(
+        "in recovering mode every corpus file composes; only the listed ones have diagnostics, duplicate keys and nothing else"
+    )
+    func recovering() throws {
+        for file in try YAMLCorpus.files() {
+            let source = Array(try Data(contentsOf: YAMLCorpus.root.appendingPathComponent(file)))
+            let documents = try YAMLDocument.documents(parsing: source, options: YAMLOptions(policy: .recovering))
+            let codes = Set(documents.flatMap { $0.diagnostics.recorded.map(\.code) })
+            #expect(codes == (Self.notComposable[file] == nil ? [] : [.yamlDuplicateKey]), "\(file): \(codes)")
+        }
     }
 }
 

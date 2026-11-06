@@ -8,8 +8,8 @@ toml-test whole under the suite's own runner, decoder and encoder (every valid f
 versions). Parsing takes fewer instructions per byte than TOMLDecoder on every benchmark file, reading every value two to three and a half
 times fewer, Codable decoding 1.9 times fewer; writing runs at 330 to 660 MB/s with a handful of allocations (ADR-0011). The
 `AemiHMMML` umbrella adds Foundation's `Date` and the projection to AemiJSON's `JSONValue`. **YAML reads to events**: `AemiYAML`
-passes yaml-test-suite's 402 event cases and refuses its 95 error cases, at fewer instructions per byte than libyaml and libfyaml
-(ADR-0012). Documents compose (aliases bounded, the core, JSON and failsafe
+passes yaml-test-suite's 402 event cases and refuses its 94 error cases, at libyaml's instructions per byte on a corpus of real
+files (170; libfyaml 142, rapidyaml 42: ADR-0012). In recovering mode it never throws, and reads what it can (ADR-0014). Documents compose (aliases bounded, the core, JSON and failsafe
 schemas, duplicate keys refused) and match the suite's 282 `in.json` files; `YAMLDecoder` shares TOML's decoder (ADR-0013). The
 emitter and `YAMLEncoder` (phase 5) are next. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
 
@@ -18,7 +18,7 @@ emitter and `YAMLEncoder` (phase 5) are next. The plan, the inventory of what it
 | Product | Format | Oracle |
 |---|---|---|
 | `AemiTOML` | TOML 1.0.0 and 1.1.0: documents, a canonical writer, `TOMLEncoder` and `TOMLDecoder` | [toml-test](https://github.com/toml-lang/toml-test) v2.2.0, decoder and encoder (266 valid, 519 invalid) |
-| `AemiYAML` | YAML 1.2.2: events and documents (done), `YAMLDecoder`; emitter next | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 95 errors) |
+| `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode (done); emitter next | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
 | `AemiFrontMatter` | Heads of Markdown and similar texts, for AemiMarkdown, AemiMermaid and ask | fixtures per rule (ADR-0009) |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 
@@ -34,11 +34,13 @@ Later, each with its own oracle: EditorConfig, `.env`, properties and INI dialec
 
 ```swift
 import AemiTOML
+import AemiYAML
 
 let document = try TOMLDocument(parsing: source)          // strict: the first violation is thrown
 document.root["package"]?["name"]?.string                 // values are read, and decoded, on access
 let lenient = try TOMLDocument(parsing: source, options: TOMLOptions(policy: .recovering))
 lenient.diagnostics.recorded                               // what was skipped, never thrown
+let head = try YAMLDocument(parsing: text, options: YAMLOptions(policy: .recovering))   // never throws either (ADR-0014)
 
 // import AemiHMMML for `Date` properties and `document.json`
 struct Manifest: Codable { var name: String; var version: String; var dependencies: [String: String]? }

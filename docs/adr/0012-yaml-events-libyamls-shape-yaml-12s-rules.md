@@ -36,7 +36,7 @@ events) is linear and well understood, but it reads YAML 1.1 and fails part of t
 
 ## Verification
 
-- yaml-test-suite at its pinned commit: all 402 cases produce their `test.event` exactly and all 95 error cases are refused; the
+- yaml-test-suite at its pinned commit: all 402 cases produce their `test.event` exactly and all 94 error cases are refused; the
   ratchet (`YAMLRatchet`) is empty and must stay exact. A broken escape made three cases fail, so the harness can fail.
 - Every prefix of every suite input (18,721 inputs), and 16,000 random edits, read or are refused without a trap, in a number of
   events linear in their length.

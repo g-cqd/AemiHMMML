@@ -16,6 +16,12 @@ struct YAMLKeyTable {
         table[hash, default: []].append(node)
     }
 
+    /// Puts `node` where `earlier`, equal to it and so of the same `hash`, was: a recovering composition's duplicate key.
+    mutating func replace(_ earlier: Int32, with node: Int32, hash: Int) {
+        if let at = small.firstIndex(where: { $0.node == earlier }) { small[at].node = node }
+        if let at = table[hash]?.firstIndex(of: earlier) { table[hash]?[at] = node }
+    }
+
     /// An earlier key equal to `node`, or nil.
     func find(_ node: Int32, in composer: YAMLComposer) -> Int32? {
         let hash = composer.nodes[Int(node)].hash

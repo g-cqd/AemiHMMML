@@ -30,14 +30,35 @@ public struct YAMLParser: Sendable {
     var openForDirectives = true
     var documents = 0
     let options: YAMLOptions
+    /// What a recovering parse repaired; empty under ``ErrorPolicy/strict``, which throws instead.
+    public internal(set) var diagnostics: Diagnostics
 
     /// The C0 controls other than tab, LF and CR: forbidden everywhere in a YAML stream, quoted scalars included (§5.1).
     static let forbiddenControls: AemiKernels.ByteSet? = AemiKernels.ByteSet(
         (0 ..< 0x20).filter { $0 != 0x09 && $0 != 0x0A && $0 != 0x0D }.map { UInt8($0) }
     )
 
-    /// Checks the stream is UTF-8 without forbidden controls; reading starts with the first ``next()``.
+    /// Under ``ErrorPolicy/strict``, checks the stream is UTF-8 without forbidden controls; reading starts with the first ``next()``
+    /// and throws the first violation. Under ``ErrorPolicy/recovering``, never throws: the stream is repaired first
+    /// (``YAMLRecovery``, one extra pass), its violations are in ``diagnostics``, and the events are those of the repaired text.
     public init(parsing source: [UInt8], options: YAMLOptions = YAMLOptions()) throws(Diagnostic) {
+        guard options.policy == .recovering else {
+            try self.init(strictly: source, options: options, recovering: false)
+            return
+        }
+        let (work, found) = YAMLRecovery.repair(source, options: options)
+        var strict = options
+        strict.policy = .strict
+        // The repaired text passed a strict parse already.
+        if let repaired = try? YAMLParser(strictly: work, options: strict, recovering: true) {
+            self = repaired
+        } else {
+            self = (try? YAMLParser(strictly: [], options: strict, recovering: true)) ?? YAMLParser(empty: strict)
+        }
+        diagnostics = found
+    }
+
+    init(strictly source: [UInt8], options: YAMLOptions, recovering: Bool) throws(Diagnostic) {
         guard source.count <= options.limits.documentBytes else {
             throw Diagnostic(
                 .limitExceeded,
@@ -56,7 +77,15 @@ public struct YAMLParser: Sendable {
         }
         scanner = YAMLScanner(source: source, limits: options.limits)
         scanner.quotedOnly = Self.quotedOnlyCharacters(in: source)
+        scanner.recovering = recovering
         self.options = options
+        diagnostics = Diagnostics(policy: options.policy, capacity: options.limits.diagnostics)
+    }
+
+    private init(empty options: YAMLOptions) {
+        scanner = YAMLScanner(source: [], limits: options.limits)
+        self.options = options
+        diagnostics = Diagnostics(policy: options.policy, capacity: options.limits.diagnostics)
     }
 
     /// Where DEL, a C1 control (but NEL) or U+FFFE / U+FFFF stands: YAML admits them only inside quoted scalars (`nb-json`, §7.3),

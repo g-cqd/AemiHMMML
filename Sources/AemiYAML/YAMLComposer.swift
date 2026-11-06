@@ -16,12 +16,24 @@ struct YAMLComposer {
     var documents: [(root: Int32, version: YAMLVersionDirective?)] = []
     private var root: Int32 = -1
     private var version: YAMLVersionDirective?
+    /// What a recovering composition repaired (ADR-0014): a duplicate key, an alias, a value its tag refuses.
+    var recovered: [Diagnostic] = []
+
+    private var recovering: Bool { options.policy == .recovering }
+
+    /// Throws `diagnostic` under strict; records it under recovering, and the caller repairs.
+    private mutating func violate(_ diagnostic: Diagnostic) throws(Diagnostic) {
+        guard recovering else { throw diagnostic }
+        recovered.append(diagnostic)
+    }
 
     /// An open collection; a mapping keeps its keys so far, to refuse a duplicate.
     struct Frame {
         let node: Int32
         var keys = YAMLKeyTable()
         var expectingKey = true
+        /// A recovering composition replaced a key: the earlier pairs leave the mapping when it closes.
+        var replaced = false
     }
 
     init(parser: YAMLParser, options: YAMLOptions) {
@@ -65,6 +77,7 @@ struct YAMLComposer {
                     stack.append(Frame(node: index))
                 case .sequenceEnd, .mappingEnd:
                     let frame = stack.removeLast()
+                    if frame.replaced { prune(frame.node) }
                     nodes[Int(frame.node)].end = event.range.upperBound
                     finish(frame.node)
                     try attach(frame.node)
@@ -78,13 +91,18 @@ struct YAMLComposer {
         try apply(scalar.properties, to: &node)
         let tag = node.tag >= 0 ? tags[Int(node.tag)] : nil
         let value = scalarValue(scalar)
-        guard let resolved = YAMLResolver.resolve(tag: tag, style: scalar.style, value: value, schema: options.schema)
-        else {
-            throw Diagnostic(
-                .yamlResolution,
-                at: event.range,
-                "the scalar's value does not fit \(tag.map { "its tag \($0)" } ?? "the JSON schema")"
+        let resolved: YAMLResolved
+        if let fitting = YAMLResolver.resolve(tag: tag, style: scalar.style, value: value, schema: options.schema) {
+            resolved = fitting
+        } else {
+            try violate(
+                Diagnostic(
+                    .yamlResolution,
+                    at: event.range,
+                    "the scalar's value does not fit \(tag.map { "its tag \($0)" } ?? "the JSON schema"), read as a string"
+                )
             )
+            resolved = YAMLResolved(kind: .string)
         }
         node.resolved = resolved
         // @lm:accept:next swap-ternary -- the tag in a hash sharpens it; equality compares tags itself (YAMLKeyTable.equal)
@@ -103,35 +121,49 @@ struct YAMLComposer {
     }
 
     private mutating func aliasNode(_ name: Range<Int>, event: YAMLEvent) throws(Diagnostic) -> Int32 {
-        guard let target = anchors[source[name]] else {
-            throw Diagnostic(.yamlAlias, at: event.range, "an alias to no anchor defined before it")
-        }
-        guard !stack.contains(where: { $0.node == target }) else {
-            throw Diagnostic(.yamlAlias, at: event.range, "an alias to a node it lies inside (a recursive structure)")
+        guard let target = anchors[source[name]], aliasRefusal(target, event: event) == nil else {
+            try violate(
+                aliasRefusal(anchors[source[name]], event: event)
+                    ?? Diagnostic(.yamlAlias, at: event.range, "an alias that cannot stand")
+            )
+            // Recovering: the alias reads as null.
+            nodes.append(YAMLNode(kind: .scalar, start: event.range.lowerBound, end: event.range.upperBound))
+            return Int32(nodes.count - 1)
         }
         aliases += 1
-        guard aliases <= options.limits.aliases else {
-            throw Diagnostic(
-                .limitExceeded,
-                at: event.range,
-                "more aliases than the limit of \(options.limits.aliases)"
-            )
-        }
         let size = nodes[Int(target)].size
         expansion = min(expansion + size, Int.max / 2)
-        guard expansion <= options.limits.aliasExpansion else {
-            throw Diagnostic(
-                .limitExceeded,
-                at: event.range,
-                "aliases standing for more nodes than the expansion limit of \(options.limits.aliasExpansion)"
-            )
-        }
         var node = YAMLNode(kind: .alias, start: event.range.lowerBound, end: event.range.upperBound)
         node.target = target
         node.size = size
         node.hash = nodes[Int(target)].hash
         nodes.append(node)
         return Int32(nodes.count - 1)
+    }
+
+    /// Why an alias to `target` cannot stand: no anchor before it, a node it lies inside, or past the alias limits; nil if it can.
+    private func aliasRefusal(_ target: Int32?, event: YAMLEvent) -> Diagnostic? {
+        guard let target else {
+            return Diagnostic(.yamlAlias, at: event.range, "an alias to no anchor defined before it")
+        }
+        guard !stack.contains(where: { $0.node == target }) else {
+            return Diagnostic(.yamlAlias, at: event.range, "an alias to a node it lies inside (a recursive structure)")
+        }
+        guard aliases < options.limits.aliases else {
+            return Diagnostic(
+                .limitExceeded,
+                at: event.range,
+                "more aliases than the limit of \(options.limits.aliases)"
+            )
+        }
+        guard min(expansion + nodes[Int(target)].size, Int.max / 2) <= options.limits.aliasExpansion else {
+            return Diagnostic(
+                .limitExceeded,
+                at: event.range,
+                "aliases standing for more nodes than the expansion limit of \(options.limits.aliasExpansion)"
+            )
+        }
+        return nil
     }
 
     private mutating func apply(_ properties: YAMLNodeProperties, to node: inout YAMLNode) throws(Diagnostic) {
@@ -159,13 +191,20 @@ struct YAMLComposer {
             if stack[top].expectingKey {
                 if let earlier = stack[top].keys.find(child, in: self) {
                     let node = nodes[Int(child)]
-                    throw Diagnostic(
-                        .yamlDuplicateKey,
-                        at: node.start ..< max(node.start, node.end),
-                        "a key equal to the key at byte \(nodes[Int(earlier)].start)"
+                    try violate(
+                        Diagnostic(
+                            .yamlDuplicateKey,
+                            at: node.start ..< max(node.start, node.end),
+                            "a key equal to the key at byte \(nodes[Int(earlier)].start)\(recovering ? ", which it replaces" : "")"
+                        )
                     )
+                    // Recovering (ADR-0006): the last one stands; the earlier pair leaves the mapping when it closes.
+                    nodes[Int(earlier)].parent = Self.replacedKey
+                    stack[top].replaced = true
+                    stack[top].keys.replace(earlier, with: child, hash: nodes[Int(child)].hash)
+                } else {
+                    stack[top].keys.insert(child, hash: nodes[Int(child)].hash)
                 }
-                stack[top].keys.insert(child, hash: nodes[Int(child)].hash)
             }
             stack[top].expectingKey.toggle()
         }
@@ -178,6 +217,30 @@ struct YAMLComposer {
         nodes[Int(parent)].last = child
         nodes[Int(parent)].count += 1
         nodes[Int(parent)].size = min(nodes[Int(parent)].size + nodes[Int(child)].size, Int.max / 2)
+    }
+
+    /// A replaced key's `parent`: its pair leaves the mapping when it closes.
+    private static let replacedKey: Int32 = -2
+
+    /// Takes the replaced keys' pairs out of `mapping`'s children, in one pass.
+    private mutating func prune(_ mapping: Int32) {
+        var kept: Int32 = 0
+        var last: Int32 = -1
+        var key = nodes[Int(mapping)].first
+        nodes[Int(mapping)].first = -1
+        while key >= 0 {
+            let value = nodes[Int(key)].next
+            let after = nodes[Int(value)].next
+            if nodes[Int(key)].parent != Self.replacedKey {
+                if last < 0 { nodes[Int(mapping)].first = key } else { nodes[Int(last)].next = key }
+                last = value
+                kept += 2
+            }
+            key = after
+        }
+        if last >= 0 { nodes[Int(last)].next = -1 }
+        nodes[Int(mapping)].last = last
+        nodes[Int(mapping)].count = kept
     }
 
     /// A closed collection's hash: its children's in order (a sequence) or as a set of pairs (a mapping), with its kind.

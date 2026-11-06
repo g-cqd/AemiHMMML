@@ -1,14 +1,17 @@
 public import AemiHMMMLCore
 
-/// How a YAML stream is read (ADR-0004, ADR-0005). Strict; recovery arrives with phase 6 (ADR-0001).
+/// How a YAML stream is read (ADR-0001, ADR-0004, ADR-0005).
 public struct YAMLOptions: Sendable, Hashable {
     public var limits: MarkupLimits
     /// How plain scalars resolve to types when documents are composed (events do not resolve).
     public var schema: YAMLSchema
+    /// ``ErrorPolicy/strict`` throws the first violation; ``ErrorPolicy/recovering`` never throws, and reads what it can (ADR-0014).
+    public var policy: ErrorPolicy
 
-    public init(limits: MarkupLimits = .default, schema: YAMLSchema = .core) {
+    public init(limits: MarkupLimits = .default, schema: YAMLSchema = .core, policy: ErrorPolicy = .strict) {
         self.limits = limits
         self.schema = schema
+        self.policy = policy
     }
 }
 

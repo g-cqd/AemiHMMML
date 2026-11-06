@@ -55,6 +55,10 @@ extension YAMLScanner {
     /// A plain scalar, over as many lines as stay indented past the current block (in block context) and do not start a
     /// document marker or a comment. Its value is folded when asked for (``YAMLScalarText``); here only its end is found.
     mutating func fetchPlainScalar() throws(Diagnostic) {
+        // A value no key can start at, nor a key its properties began, in block context: strict refuses a `: ` in it (no mapping
+        // value may follow it there); recovering keeps it as text (`description: Use it: when …`), the commonest error in
+        // hand-written heads.
+        let colonsAsText = recovering && flowLevel == 0 && !simpleKeyAllowed && !simpleKeys.innermost.possible
         try saveSimpleKey()
         simpleKeyAllowed = false
         let start = index
@@ -68,6 +72,12 @@ extension YAMLScanner {
             if source[index] == 0x23 { break }
             let runStart = index
             scanPlainRun()
+            if colonsAsText, index + 1 < count, source[index] == 0x3A {
+                keepColonAsText()
+                end = index
+                brokeAfterContent = false
+                continue
+            }
             if index > runStart {
                 end = index
                 brokeAfterContent = false
@@ -101,6 +111,20 @@ extension YAMLScanner {
             if flowLevel > 0, isFlowIndicator(byte) { break }
             index += 1
         }
+    }
+
+    /// Recovering: the `:` a run stopped at is text, with a diagnostic, and the scalar goes on (out of the hot loop: strict never
+    /// comes here).
+    @inline(never)
+    private mutating func keepColonAsText() {
+        recovered.append(
+            Diagnostic(
+                .yamlImplicitKey,
+                at: index ..< index + 1,
+                "a ': ' inside a value, kept as text (quote the value)"
+            )
+        )
+        index += 1
     }
 
     /// The white space and line breaks after a run, keeping each new line's indentation as scanToNextToken keeps it; returns the

@@ -19,7 +19,9 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "FuzzYAML",
-            dependencies: [.product(name: "AemiYAML", package: "AemiHMMML")],
+            dependencies: [
+                .product(name: "AemiHMMMLCore", package: "AemiHMMML"), .product(name: "AemiYAML", package: "AemiHMMML")
+            ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .executableTarget(

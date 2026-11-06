@@ -9,29 +9,43 @@ public struct YAMLDocument: Sendable {
     let rootIndex: Int32
     /// The `%YAML` directive's version, if the document had one.
     public let version: YAMLVersionDirective?
+    /// What a recovering read repaired in the whole stream (ADR-0014); empty under ``ErrorPolicy/strict``, which throws instead.
+    public var diagnostics: Diagnostics { storage.diagnostics }
 
     /// The one document of `source`: an empty stream is a document whose root is null; more than one is refused (read those with
-    /// ``documents(parsing:options:)``).
+    /// ``documents(parsing:options:)``), or under ``ErrorPolicy/recovering`` the first is kept, with a diagnostic.
     public init(parsing source: [UInt8], options: YAMLOptions = YAMLOptions()) throws(Diagnostic) {
-        let all = try Self.documents(parsing: source, options: options)
-        guard all.count <= 1 else {
-            throw Diagnostic(
+        var (storage, roots) = try Self.compose(source, options: options)
+        if roots.count > 1 {
+            let extra = Diagnostic(
                 .yamlSyntax,
                 at: 0 ..< 0,
-                "a stream of \(all.count) documents: read them with documents(parsing:)"
+                "a stream of \(roots.count) documents: read them with documents(parsing:)"
+            )
+            guard options.policy == .recovering else { throw extra }
+            var diagnostics = storage.diagnostics
+            try? diagnostics.report(extra)
+            storage = Storage(
+                source: storage.source,
+                nodes: storage.nodes,
+                tags: storage.tags,
+                schema: storage.schema,
+                diagnostics: diagnostics
             )
         }
-        if let only = all.first {
-            self = only
-        } else {
-            let storage = Storage(
-                source: source,
-                nodes: [YAMLNode(kind: .scalar, start: 0, end: 0)],
-                tags: [],
-                schema: options.schema
+        guard let first = roots.first else {
+            // No document at all: a null root, over a node of its own.
+            let empty = Storage(
+                source: storage.source,
+                nodes: storage.nodes + [YAMLNode(kind: .scalar, start: 0, end: 0)],
+                tags: storage.tags,
+                schema: storage.schema,
+                diagnostics: storage.diagnostics
             )
-            self.init(storage: storage, root: 0, version: nil)
+            self.init(storage: empty, root: Int32(empty.nodes.count - 1), version: nil)
+            return
         }
+        self.init(storage: storage, root: first.root, version: first.version)
     }
 
     public init(parsing text: String, options: YAMLOptions = YAMLOptions()) throws(Diagnostic) {
@@ -42,13 +56,27 @@ public struct YAMLDocument: Sendable {
     public static func documents(parsing source: [UInt8], options: YAMLOptions = YAMLOptions()) throws(Diagnostic)
         -> [YAMLDocument]
     {
+        let (storage, roots) = try compose(source, options: options)
+        // A document with no node (`---` alone) has an empty scalar the parser made: it is always there.
+        return roots.map { YAMLDocument(storage: storage, root: $0.root, version: $0.version) }
+    }
+
+    private static func compose(_ source: [UInt8], options: YAMLOptions) throws(Diagnostic)
+        -> (Storage, [(root: Int32, version: YAMLVersionDirective?)])
+    {
         var composer = YAMLComposer(parser: try YAMLParser(parsing: source, options: options), options: options)
         try composer.compose()
-        let storage = Storage(source: source, nodes: composer.nodes, tags: composer.tags, schema: options.schema)
-        return composer.documents.map { document in
-            // A document with no node (`---` alone) has an empty scalar the parser made: it is always there.
-            YAMLDocument(storage: storage, root: document.root, version: document.version)
-        }
+        var diagnostics = composer.parser.diagnostics
+        for diagnostic in composer.recovered { try? diagnostics.report(diagnostic) }
+        // A recovering parse reads a repaired copy with the same offsets: views read the bytes the nodes were made from.
+        let storage = Storage(
+            source: composer.source,
+            nodes: composer.nodes,
+            tags: composer.tags,
+            schema: options.schema,
+            diagnostics: diagnostics
+        )
+        return (storage, composer.documents.map { ($0.root, $0.version) })
     }
 
     init(storage: Storage, root: Int32, version: YAMLVersionDirective?) {
@@ -67,12 +95,14 @@ public struct YAMLDocument: Sendable {
         let nodes: [YAMLNode]
         let tags: [String]
         let schema: YAMLSchema
+        let diagnostics: Diagnostics
 
-        init(source: [UInt8], nodes: [YAMLNode], tags: [String], schema: YAMLSchema) {
+        init(source: [UInt8], nodes: [YAMLNode], tags: [String], schema: YAMLSchema, diagnostics: Diagnostics) {
             self.source = source
             self.nodes = nodes
             self.tags = tags
             self.schema = schema
+            self.diagnostics = diagnostics
         }
     }
 }

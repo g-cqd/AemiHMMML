@@ -135,6 +135,7 @@ extension YAMLScanner {
     }
 
     mutating func fetchFlowCollectionStart(_ kind: YAMLToken.Kind, mapping: Bool) throws(Diagnostic) {
+        if flowLevel == 0 { outermostFlowStart = index }
         try saveSimpleKey()
         flowLevel += 1
         flowIsMapping.append(mapping)
