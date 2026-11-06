@@ -43,7 +43,10 @@ struct YAMLEncoderTests {
             tags: ["a", "b c", ""],
             nested: ["x": [1, 2], "y": []],
             optionals: [1, nil, 3],
-            child: Sample.Child(text: "line one\nline two\n", values: [.infinity, -.infinity, 1e100, 5e-324, -0.0])
+            child: Sample.Child(
+                text: "line one\nline two\n",
+                values: [.infinity, -.infinity, 1e100, .leastNonzeroMagnitude, -0.0]
+            )
         )
         let (back, text) = try Self.roundTrip(sample)
         #expect(back == sample, "\(text)")
