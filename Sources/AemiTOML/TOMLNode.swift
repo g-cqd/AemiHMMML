@@ -28,8 +28,6 @@ struct TOMLNode {
     var keyStart: UInt32 = 0
     var keyLength: UInt32 = 0
     var keyInArena = false
-    /// For a closed inline table: it is closed.
-    var closed = false
     var parent: Int32
     var first: Int32 = -1
     var last: Int32 = -1
@@ -37,8 +35,6 @@ struct TOMLNode {
     var count: Int32 = 0
     /// The header section that created it (dotted tables are extended only from their own).
     var section: Int32
-    /// The inline table it lies in (itself for an inline table), or -1.
-    var owner: Int32 = -1
     var depth: Int32
     /// An integer's bits, a float's bits, or a boolean.
     var payload: UInt64 = 0

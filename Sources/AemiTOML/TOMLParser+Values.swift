@@ -90,7 +90,6 @@ extension TOMLParser {
 
     private mutating func close(_ node: Int32, _ stack: inout [Frame]) -> Step {
         nodes[Int(node)].end = UInt32(cursor)
-        if nodes[Int(node)].origin == .inline { nodes[Int(node)].closed = true }
         stack.removeLast()
         return .after
     }

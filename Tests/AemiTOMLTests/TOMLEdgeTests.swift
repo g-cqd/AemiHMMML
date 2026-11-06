@@ -26,7 +26,11 @@ struct TOMLEdgeTests {
         #expect(try Self.read("a = -nan").root["a"]?.double?.sign == .minus)
         #expect(try Self.read("a = nan").root["a"]?.double?.sign == .plus)
         #expect(try Self.read("a = +nan").root["a"]?.double?.isNaN == true)
-        for text in ["99999999999999999999", "18446744073709551619", "0xFFFFFFFFFFFFFFFFF", "9223372036854775808"] {
+        // 2^64 in hex wraps to 0 in 64 bits: only the overflow check refuses it.
+        for text in [
+            "99999999999999999999", "18446744073709551619", "0xFFFFFFFFFFFFFFFFF", "9223372036854775808",
+            "0x10000000000000000"
+        ] {
             #expect(Self.refusal("a = \(text)") != nil, "\(text)")
         }
         #expect(try Self.read("a = -9223372036854775808").root["a"]?.integer == .min)

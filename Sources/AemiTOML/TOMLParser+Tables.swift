@@ -55,12 +55,6 @@ extension TOMLParser {
         }
     }
 
-    /// Whether `node` lies in an inline table whose brace has closed.
-    func isClosed(_ node: Int32) -> Bool {
-        let owner = nodes[Int(node)].owner
-        return owner >= 0 && nodes[Int(owner)].closed
-    }
-
     /// A new node under `parent`, last among its children, indexed under `key` when it has one.
     mutating func makeNode(
         _ kind: TOMLKind,
@@ -86,7 +80,6 @@ extension TOMLParser {
             section: section,
             depth: depth
         )
-        node.owner = origin == .inline ? id : (kind == .table ? nodes[Int(parent)].owner : -1)
         if let key {
             node.keyStart = UInt32(key.part.start)
             node.keyLength = UInt32(key.part.length)
@@ -157,7 +150,7 @@ extension TOMLParser {
             let (found, hash) = child(of: table, part)
             if let found {
                 let node = nodes[Int(found)]
-                guard node.kind == .table, node.origin == .dotted, node.section == section, !isClosed(found) else {
+                guard node.kind == .table, node.origin == .dotted, node.section == section else {
                     throw Diagnostic(
                         .tomlInvalidTable,
                         at: part.written,
@@ -187,7 +180,8 @@ extension TOMLParser {
             let (found, hash) = child(of: table, part)
             if let found {
                 let node = nodes[Int(found)]
-                if node.kind == .table, node.origin != .inline, !isClosed(found) {
+                // An inline table is closed with its brace: no header enters it, nor anything inside it (the only way in).
+                if node.kind == .table, node.origin != .inline {
                     table = found
                 } else if node.kind == .array, node.origin == .arrayOfTables, node.last >= 0 {
                     table = node.last

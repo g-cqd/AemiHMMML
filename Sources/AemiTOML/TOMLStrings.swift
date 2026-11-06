@@ -37,8 +37,8 @@ enum TOMLStrings {
         let quote = source[start]
         let literal = quote == 0x27
         let multiline = start + 2 < source.count && source[start + 1] == quote && source[start + 2] == quote
-        // @lm:accept:next swap-ternary -- the style says whether a value needs decoding, which literal and basic share at one width
         let style: TOMLStringStyle =
+            // @lm:accept:next swap-ternary -- the style says whether a value needs decoding, which literal and basic share per width
             literal ? (multiline ? .multilineLiteral : .literal) : (multiline ? .multilineBasic : .basic)
         var index = start + (multiline ? 3 : 1)
         // A line ending right after a multi-line string's opening delimiter is trimmed.
