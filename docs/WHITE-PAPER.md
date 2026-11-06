@@ -101,9 +101,10 @@ Each layer catches what the others cannot; a phase of the plan closes when all o
 - **Properties**: parse ∘ emit ∘ parse is the identity on the document; emission is deterministic; every byte string terminates within
   the limits; recovering mode never throws.
 - **Fuzzing**: libFuzzer targets per format under AddressSanitizer, seeded from the suites (`Tools/Fuzz`).
-- **Sanitizers**: AddressSanitizer on Linux on every push, through swift-ci; the fuzz targets run under it too.
+- **Sanitizers**, through swift-ci: address on Linux on every push; address on macOS and thread on both nightly; the fuzz targets
+  run under address.
 - **Formal models** where state is intricate, each with its refuted control and its paired oracle test.
-- **Mutation**: litmus over each format module. A survivor is a missing test or an equivalent mutant accepted in the source with its
+- **Mutation**: litmus over each format module, nightly in CI (swift-ci's `mutation` command). A survivor is a missing test or an equivalent mutant accepted in the source with its
   reason (`// @lm:accept:next rule -- reason`), never a silent pass.
 - **Quality**: swift-ci quality, strict: swift-format, SwiftLint, deadwood, dolly, arcleak, and discipline (`strtod`, untyped throws,
   wall clock, force unwraps). A baseline is refreshed only for clones that are the language's shape (Codable's overload lists), never to

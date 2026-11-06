@@ -81,7 +81,9 @@
         "linux-debug",
         "linux-release",
         "linux-address",
-        "macos-debug"
+        "macos-debug",
+        "mutation",
+        "toml-differential"
       ]
     },
     {
@@ -93,7 +95,7 @@
     {
       "id": "toml-differential",
       "title": "Verification · toml++ Differential",
-      "run": ".ci/swift-ci run suites && (brew list tomlplusplus > /dev/null 2>&1 || brew install --quiet tomlplusplus) && clang++ -std=c++17 -O2 -w -I\"$(brew --prefix)/include\" Benchmarks/References/toml_tagged.cpp -o .build/tomlpp-decoder && swift test --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter-tests && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && \"$A\" differential .build/tomlpp-decoder --mutations 10 --known Tools/TOMLTestAdapter/Differential/known.txt .build/fixtures/toml-test/tests .build/fixtures/corpus Tools/TOMLTestAdapter/Differential/inputs",
+      "run": "(brew list tomlplusplus > /dev/null 2>&1 || brew install --quiet tomlplusplus) && clang++ -std=c++17 -O2 -w -I\"$(brew --prefix)/include\" Benchmarks/References/toml_tagged.cpp -o .build/tomlpp-decoder && swift test --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter-tests && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && \"$A\" differential .build/tomlpp-decoder --mutations 10 --known Tools/TOMLTestAdapter/Differential/known.txt .build/fixtures/toml-test/tests .build/fixtures/corpus Tools/TOMLTestAdapter/Differential/inputs",
       "os": "macOS",
       "cadence": [
         "nightly",
@@ -117,6 +119,25 @@
         "nightly",
         "dispatch"
       ]
+    },
+    {
+      "id": "mutation",
+      "title": "Verification · Mutation (litmus)",
+      "os": "macOS",
+      "cadence": [
+        "nightly",
+        "dispatch"
+      ],
+      "mutation": {
+        "paths": [
+          "Sources/AemiTOML/**",
+          "Sources/AemiYAML/**",
+          "Sources/AemiFrontMatter/**",
+          "Sources/AemiHMMMLCore/**"
+        ],
+        "budget": 7200,
+        "workspace": "in-place"
+      }
     }
   ]
 }
