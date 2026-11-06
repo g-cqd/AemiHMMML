@@ -255,35 +255,29 @@ struct YAMLComposer {
         nodes[Int(mapping)].count = kept
     }
 
-    /// A closed collection's hash: its children's in order (a sequence) or as a set of pairs (a mapping), with its kind.
+    /// A closed collection's hash: its children's in order (a sequence) or as a set of pairs (a mapping), with its kind and tag.
     private mutating func finish(_ index: Int32) {
-        var hasher = Hasher()
         let node = nodes[Int(index)]
-        hasher.combine(node.kind.rawValue)
-        hasher.combine(node.tag)
+        var hash = YAMLKeyTable.mix(UInt64(node.kind.rawValue), UInt64(UInt32(bitPattern: node.tag)))
         var child = node.first
-        var pairs = 0
+        var pairs: UInt64 = 0
         var position = 0
-        var keyHash = 0
+        var keyHash: UInt64 = 0
         while child >= 0 {
-            let hash = nodes[Int(child)].hash
+            let childHash = UInt64(bitPattern: Int64(nodes[Int(child)].hash))
             if node.kind == .mapping {
-                // Order-independent: key and value hashed as a pair, the pairs summed.
+                // Order-independent: key and value mixed as a pair, the pairs summed.
                 if position % 2 == 0 {
-                    keyHash = hash
+                    keyHash = childHash
                 } else {
-                    var pair = Hasher()
-                    pair.combine(keyHash)
-                    pair.combine(hash)
-                    pairs &+= pair.finalize()
+                    pairs &+= YAMLKeyTable.mix(keyHash, childHash)
                 }
             } else {
-                hasher.combine(hash)
+                hash = YAMLKeyTable.mix(hash, childHash)
             }
             position += 1
             child = nodes[Int(child)].next
         }
-        hasher.combine(pairs)
-        nodes[Int(index)].hash = hasher.finalize()
+        nodes[Int(index)].hash = Int(truncatingIfNeeded: YAMLKeyTable.mix(hash, pairs))
     }
 }

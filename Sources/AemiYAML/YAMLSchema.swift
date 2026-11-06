@@ -27,6 +27,20 @@ public enum YAMLScalarKind: Sendable, Hashable {
     case timestamp
 }
 
+extension YAMLScalarKind {
+    /// A small number per kind, for hashing.
+    var code: UInt64 {
+        switch self {
+            case .null: 0
+            case .bool: 1
+            case .int: 2
+            case .float: 3
+            case .string: 4
+            case .timestamp: 5
+        }
+    }
+}
+
 /// A resolved scalar: its kind, and for a bool, an integer that fits 64 bits, or a float, its bits.
 struct YAMLResolved: Hashable {
     var kind: YAMLScalarKind

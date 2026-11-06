@@ -20,6 +20,9 @@ First pass (profiled with `sample` on a release driver, measured in instructions
 - `YAMLNode` keeps the scalar's plain fields, not a `YAMLScalar`, whose properties hold a `String?`. A node holds no reference
   now, and copies as bytes: 158M to 150M.
 - The decoder builds a member's coding path only when it is asked for (`MarkupMember`): Deployments decode 2.3 % faster.
+- Key hashes through aemi's `KeyedHash` (SipHash-1-3, eight bytes a step), as TOML's key index already did (ADR-0010; aemi made
+  it for this profile). Collections mix their children's keyed hashes instead of building a `Hasher` per pair: corpus
+  composition 226M to 214M, Deployments decoding 347M to 339M.
 - Tried and reverted: feeding the key hasher eight bytes at a time. `Hasher` already buffers bytes; the number did not move.
 
 Benchmarks against the parent commit: corpus composition 329M to 226M instructions (allocations 96K to 72K), Deployments decoding

@@ -1,3 +1,5 @@
+internal import AemiKernel
+
 /// The keys of one open mapping, to refuse a duplicate (ADR-0006) in linear time: a scan while the mapping is small, a table
 /// by hash past eight keys. Keys compare by value: `1` and `0x1` are one key, `"a"` and `a` too, `!x a` and `a` are not; complex
 /// keys compare by structure (ADR-0006: YAML 1.2 requires unique keys).
@@ -29,25 +31,36 @@ struct YAMLKeyTable {
         return candidates.first { YAMLKeyTable.equal($0, node, in: composer) }
     }
 
-    /// The hash of a scalar's value: its kind and its canonical value (a string's bytes and tag; a number's value).
+    /// The hash of a scalar's value: its kind and its canonical value (a string's bytes and tag; a number's value). Keyed
+    /// (aemi's ``KeyedHash``, ADR-0010): keys are attacker input, and `Hasher`, one `combine` per byte, cost 3.5 % of composing.
     static func hash(_ resolved: YAMLResolved, value: ArraySlice<UInt8>, tag: Int32) -> Int {
-        var hasher = Hasher()
-        hasher.combine(resolved.kind)
+        let kind = resolved.kind.code
+        let hash: UInt64
         switch resolved.kind {
-            case .string:
-                hasher.combine(tag)
-                combine(value, into: &hasher)
-            case .int where resolved.wide: combine(value, into: &hasher)
-            case .float: hasher.combine(Double(bitPattern: resolved.payload) == 0 ? 0 : resolved.payload)
-            case .timestamp: hasher.combine(YAML11Timestamp.identity(value))
-            default: hasher.combine(resolved.payload)
+            case .string: hash = KeyedHash.process.hash(tweak: kind << 32 | UInt64(UInt32(bitPattern: tag)), value)
+            case .int where resolved.wide: hash = KeyedHash.process.hash(tweak: kind << 32, value)
+            case .float:
+                // 0.0 and -0.0 are one value.
+                let payload = Double(bitPattern: resolved.payload) == 0 ? 0 : resolved.payload
+                hash = KeyedHash.process.hash(tweak: payload, kindBytes[Int(kind)])
+            case .timestamp:
+                // The instant: seconds and nanoseconds in one word (wrapping, so equal instants agree).
+                let identity = YAML11Timestamp.identity(value)
+                let instant = (identity.first ?? 0) &* 1_000_000_000 &+ (identity.last ?? 0)
+                hash = KeyedHash.process.hash(tweak: UInt64(bitPattern: instant), kindBytes[Int(kind)])
+            default: hash = KeyedHash.process.hash(tweak: resolved.payload, kindBytes[Int(kind)])
         }
-        return hasher.finalize()
+        return Int(truncatingIfNeeded: hash)
     }
 
-    private static func combine(_ bytes: ArraySlice<UInt8>, into hasher: inout Hasher) {
-        hasher.combine(bytes.count)
-        for byte in bytes { hasher.combine(byte) }
+    /// One byte per kind, hashed with a number's payload as the tweak: a scalar's hash without an allocation.
+    private static let kindBytes: [ArraySlice<UInt8>] = (0 ..< 8).map { [UInt8($0)][...] }
+
+    /// A collection's hash from its children's, already keyed: a fixed mixer over secret inputs gives an attacker nothing to aim
+    /// at. Multiply to 128 bits and fold, as wyhash mixes.
+    static func mix(_ a: UInt64, _ b: UInt64) -> UInt64 {
+        let product = (a ^ 0xA076_1D64_78BD_642F).multipliedFullWidth(by: b ^ 0xE703_7ED1_A0B4_28DB)
+        return product.high ^ product.low
     }
 
     /// Whether two nodes have the same value, aliases followed; nested collections compared with a stack of pairs.
