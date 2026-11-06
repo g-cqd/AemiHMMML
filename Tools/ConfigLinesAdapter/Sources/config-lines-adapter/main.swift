@@ -1,6 +1,6 @@
-// config-lines-adapter differential properties|gitconfig [--inputs N] [--java PATH] [--git PATH] [PATH...]
+// config-lines-adapter differential properties|gitconfig|ini [--inputs N] [--java PATH] [--git PATH] [--python PATH] [PATH...]
 //
-// AemiConfigLines against a format's reference implementation (ADR-0023, ADR-0024): every file under the paths, and N seeded
+// AemiConfigLines against a format's reference implementation (ADR-0023 to ADR-0025): every file under the paths, and N seeded
 // inputs built from the format's own pieces and mutated a byte at a time, read by both. They agree when both refuse (at the same
 // line, where the oracle says), or both read the same. Exit 0 when they always agree; the first disagreements are printed.
 
@@ -14,20 +14,22 @@ func fail(_ message: String) -> Never {
 }
 
 let usage =
-    "usage: config-lines-adapter differential properties|gitconfig [--inputs N] [--java PATH] [--git PATH] [PATH...]"
+    "usage: config-lines-adapter differential properties|gitconfig|ini [--inputs N] [--java|--git|--python PATH] [PATH...]"
 var arguments = CommandLine.arguments.dropFirst()[...]
 guard arguments.popFirst() == "differential", let format = arguments.popFirst(),
-    ["properties", "gitconfig"].contains(format)
+    ["properties", "gitconfig", "ini"].contains(format)
 else { fail(usage) }
 var count = 20_000
 var java = "java"
 var git = "git"
+var python = "python3"
 var paths: [String] = []
 while let argument = arguments.popFirst() {
     switch argument {
         case "--inputs": count = arguments.popFirst().flatMap(Int.init) ?? count
         case "--java": java = arguments.popFirst() ?? java
         case "--git": git = arguments.popFirst() ?? git
+        case "--python": python = arguments.popFirst() ?? python
         default: paths.append(argument)
     }
 }
@@ -57,7 +59,7 @@ func generated(_ count: Int, seed: UInt64, pieces: [String], alphabet: String) -
 }
 
 var inputs: [(String, [UInt8])] = []
-let suffix = format == "properties" ? ".properties" : "config"
+let suffix = ["properties": ".properties", "gitconfig": "config", "ini": ".ini"][format] ?? ""
 for path in paths {
     for file in (FileManager.default.enumerator(atPath: path)?.compactMap { $0 as? String } ?? []).sorted()
     where file.hasSuffix(suffix) {
@@ -80,6 +82,24 @@ if format == "properties" {
         alphabet: "=:!#\\ \t\u{0C}\n\rduEF0éa"
     )
     exit(propertiesDifferential(inputs, java: java) ? 0 : 1)
+} else if format == "ini" {
+    // Three in four start in a section, so that more reach the rules past the first line.
+    let ini = generated(
+        count,
+        seed: 0x0049_4E49,
+        pieces: [
+            "[section]\n", "[Section]\n", "[DEFAULT]\n", "[one]\n", "[two]\n", "[three]\n", "[four]\n",
+            "[a] trailing\n", "[x]y]\n", "[]\n", "key = value\n", "Key: v\n",
+            "spaced key = spaced value  \n", "empty =\n", "=nameless\n", "novalue\n", "  continued\n", "\tmore\n", "\n",
+            "  \n", "# comment\n", "; comment\n", "  # indented comment\n", "a = 1 ; not a comment\n",
+            "multi =\n  one\n\n  two\n",
+            "dup = 1\ndup = 2\n", "url = http://x:80\n", "é = ü\u{00A0}\n", "\u{2003}k = v\n", "k\u{0B}= v\r\n", "\r\n",
+            "%(interp)s = x\n"
+        ],
+        alphabet: "[]=:#; \t\n\r\u{0C}\u{1C}aK1é\u{A0}"
+    )
+    inputs += ini.enumerated().map { index, input in index % 4 == 0 ? input : (input.0, Array("[s]\n".utf8) + input.1) }
+    exit(iniDifferential(inputs, python: python) ? 0 : 1)
 } else {
     inputs += generated(
         count,

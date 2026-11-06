@@ -12,5 +12,6 @@ own oracle: the reference implementation run as a process, as toml++ is for TOML
 
 Bar: per format, the oracle's cases pass, it is fuzzed, and its ADR lists the dialect's choices.
 
-Java properties done (ADR-0023); git config done (ADR-0024). `.env` waits for an oracle on the machine (no dotenv implementation or Docker here).
+Java properties done (ADR-0023); git config done (ADR-0024); INI in Python's dialect done (ADR-0025; Windows' profile files
+need a Windows oracle). `.env` waits for an oracle on the machine (no dotenv implementation or Docker here).
 

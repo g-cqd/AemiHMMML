@@ -41,6 +41,7 @@ Expected values come from the oracle, never from the author.
 | EditorConfig | editorconfig-core-test, the reference core's suite, under ctest through `Tools/EditorConfigAdapter` (ADR-0021) |
 | Java properties | OpenJDK's `Properties.load`, on seeded inputs, through `Tools/ConfigLinesAdapter` (ADR-0023) |
 | git config | `git config --list`, on seeded inputs, through `Tools/ConfigLinesAdapter` (ADR-0024) |
+| INI (Python's dialect) | `configparser`, on seeded inputs, through `Tools/ConfigLinesAdapter` (ADR-0025) |
 | Table rules, indentation, simple keys | TLA+ models in `docs/formal`, each paired with a Swift oracle test that checks the parser against the model |
 
 A divergence is recorded with the oracle's answer and the specification text that settles it. Known divergences are listed in a file the
