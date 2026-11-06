@@ -19,7 +19,7 @@ emitter and `YAMLEncoder` (phase 5) are next. The plan, the inventory of what it
 |---|---|---|
 | `AemiTOML` | TOML 1.0.0 and 1.1.0: documents, a canonical writer, `TOMLEncoder` and `TOMLDecoder` | [toml-test](https://github.com/toml-lang/toml-test) v2.2.0, decoder and encoder (266 valid, 519 invalid) |
 | `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode (done); emitter next | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
-| `AemiFrontMatter` | Heads of Markdown and similar texts, for AemiMarkdown, AemiMermaid and ask | fixtures per rule (ADR-0009) |
+| `AemiFrontMatter` | Heads of Markdown and similar texts (`---` YAML, `+++` TOML, a leading JSON object), streaming-aware, read in place, for AemiMarkdown, AemiMermaid and ask (done) | one fixture per rule, each from Jekyll's, Hugo's, Mermaid's or ask's code (ADR-0015) |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 
 Later, each with its own oracle: EditorConfig, `.env`, properties and INI dialects, KDL 2.0, property lists. JSON, JSON5 and JSONC belong to

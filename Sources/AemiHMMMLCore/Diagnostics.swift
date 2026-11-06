@@ -20,6 +20,19 @@ public struct Diagnostics: Sendable, Hashable {
 
     /// Under ``ErrorPolicy/strict``, throws `diagnostic`. Under ``ErrorPolicy/recovering``, records it (or counts it once ``capacity`` is
     /// reached) and returns, so the parser resumes.
+    /// Adds `other`'s violations after these, kept up to this ``capacity``, counted past it, whatever the policy: the
+    /// diagnostics of a part read on its own (a front matter's head) joining those of the whole.
+    public mutating func merge(_ other: Self) {
+        for diagnostic in other.recorded {
+            if recorded.count < capacity {
+                recorded.append(diagnostic)
+            } else {
+                dropped += 1
+            }
+        }
+        dropped += other.dropped
+    }
+
     public mutating func report(_ diagnostic: Diagnostic) throws(Diagnostic) {
         guard policy == .recovering else { throw diagnostic }
         if recorded.count < capacity {

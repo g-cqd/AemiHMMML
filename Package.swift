@@ -38,6 +38,7 @@ let package = Package(
         .library(name: "AemiHMMMLCore", targets: ["AemiHMMMLCore"]),
         .library(name: "AemiTOML", targets: ["AemiTOML"]),
         .library(name: "AemiYAML", targets: ["AemiYAML"]),
+        .library(name: "AemiFrontMatter", targets: ["AemiFrontMatter"]),
         .library(name: "AemiHMMML", targets: ["AemiHMMML"])
     ],
     dependencies: [aemiDependency, aemiJSONDependency, collectionsDependency],
@@ -74,10 +75,34 @@ let package = Package(
             dependencies: ["AemiYAML", "AemiHMMMLCore", .product(name: "AemiTestKit", package: "aemi")],
             swiftSettings: strictSettings
         ),
+        // Heads of Markdown and similar texts (ADR-0009, ADR-0015): AemiMarkdown, AemiMermaid and ask read them through it.
+        .target(
+            name: "AemiFrontMatter",
+            dependencies: [
+                "AemiHMMMLCore",
+                "AemiTOML",
+                "AemiYAML",
+                .product(name: "AemiJSONCore", package: "AemiJSON")
+            ],
+            swiftSettings: strictSettings
+        ),
+        .testTarget(
+            name: "AemiFrontMatterTests",
+            dependencies: [
+                "AemiFrontMatter",
+                "AemiHMMMLCore",
+                "AemiTOML",
+                "AemiYAML",
+                .product(name: "AemiJSONCore", package: "AemiJSON"),
+                .product(name: "AemiTestKit", package: "aemi")
+            ],
+            swiftSettings: strictSettings
+        ),
         // The umbrella: every format re-exported, with Foundation's `Date` and the projection to `JSONValue` (ADR-0011).
         .target(
             name: "AemiHMMML",
             dependencies: [
+                "AemiFrontMatter",
                 "AemiHMMMLCore",
                 "AemiTOML",
                 "AemiYAML",
