@@ -83,7 +83,8 @@
         "linux-address",
         "macos-debug",
         "mutation",
-        "toml-differential"
+        "toml-differential",
+        "benchmarks"
       ]
     },
     {
@@ -101,6 +102,27 @@
         "nightly",
         "dispatch"
       ]
+    },
+    {
+      "id": "benchmarks",
+      "title": "Performance · Benchmarks against the Commit Before",
+      "os": "macOS",
+      "cadence": [
+        "push",
+        "nightly",
+        "dispatch"
+      ],
+      "paths": [
+        "Sources/**",
+        "Benchmarks/**",
+        "Package.swift",
+        "Package.resolved"
+      ],
+      "benchmark": {
+        "shared": [
+          ".build/fixtures"
+        ]
+      }
     },
     {
       "id": "tla-models",

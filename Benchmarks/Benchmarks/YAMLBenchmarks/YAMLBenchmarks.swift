@@ -26,7 +26,13 @@ private func corpus() -> [String] {
 nonisolated(unsafe) let benchmarks = {
     Benchmark.defaultConfiguration = .init(
         metrics: [.wallClock, .cpuTotal, .instructions, .mallocCountTotal, .peakMemoryResident],
-        maxDuration: .seconds(3)
+        maxDuration: .seconds(3),
+        // What CI compares with the commit before (swift-ci's benchmark command): deterministic counts only, a regression
+        // past 2 % of instructions or 1 % of allocations at the median fails it. Time on a shared runner is noise.
+        thresholds: [
+            .instructions: BenchmarkThresholds(relative: [.p50: 2.0]),
+            .mallocCountTotal: BenchmarkThresholds(relative: [.p50: 1.0])
+        ]
     )
     let texts = corpus()
     let sources = texts.map { Array($0.utf8) }

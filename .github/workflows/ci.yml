@@ -17,6 +17,6 @@ permissions:
 jobs:
   ci:
     name: Checks
-    uses: g-cqd/swift-ci/.github/workflows/swift-ci.yml@fce068869cfe1b51b43717de9e00e746941f4437 # swift-ci fce0688
+    uses: g-cqd/swift-ci/.github/workflows/swift-ci.yml@500bb542906d08e3fb4d1473b1f95a9cfe426f86 # swift-ci 500bb54
     permissions:
       contents: write # reusable publish permission; this package publishes no archives

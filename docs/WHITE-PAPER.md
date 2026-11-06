@@ -70,7 +70,8 @@ as `.leastNonzeroMagnitude` or `Double(bitPattern:)`, which every target accepts
 - **Benchmarks are ordo-one suites** in `Benchmarks/`, release only, beside the fastest available peers: rapidyaml, libfyaml and libyaml
   for YAML; toml++ and TOMLDecoder for TOML. "Fastest" is not a word this project uses until the numbers say it.
 - **Gates are deterministic**: instructions retired per unit of work, allocations, bytes. Wall-clock percentiles are a realism check read
-  by a person, never a threshold.
+  by a person, never a threshold. CI runs the benchmarks at the commit before and at this one, on the same runner, whenever `Sources`
+  or `Benchmarks` change, and fails past 2 % more instructions or 1 % more allocations (swift-ci's `benchmark` command).
 - **Every change that can touch a hot path is benchmarked** before and after, against the parent commit, same harness, same inputs. That
   includes refactors that "only share code".
 - **Profile before changing.** A change that moves no number is reverted. Order of attack: don't do the work, do less of it, do it
