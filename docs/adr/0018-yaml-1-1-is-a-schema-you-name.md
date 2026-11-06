@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0018: YAML 1.1 is a schema you name, with merge keys
 
-Status: decided and built, 2026-11-06 (phase 5 of the plan, third part). It builds what ADR-0005 left opt-in.
+Built 2026-11-06 (phase 5 of the plan, third part). It builds what ADR-0005 left opt-in.
 
 ## Decision
 

@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0014: YAML recovery repairs the text, then reads it strictly
 
-Status: decided and built, 2026-11-06 (step 1 of phase 6).
+Built 2026-11-06 (step 1 of phase 6).
 
 ## Context
 

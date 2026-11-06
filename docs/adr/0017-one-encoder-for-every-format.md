@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0017: One encoder for every format, and YAMLEncoder on it
 
-Status: decided and built, 2026-11-06 (phase 5 of the plan, second part).
+Built 2026-11-06 (phase 5 of the plan, second part).
 
 ## Decision
 

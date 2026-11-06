@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0009: One front matter locator, used by AemiMarkdown
 
 A head at the start of a text (`---` YAML, `+++` TOML, a leading JSON object) is found by one locator, `AemiFrontMatter`: an optional byte-order
@@ -11,4 +16,4 @@ with its range, format and parsed value; off, CommonMark and GFM conformance is 
 closing fence; an edit inside it re-reads the head only. AemiMarkdown never fails, so it reads heads with `ErrorPolicy.recovering` and exposes
 the diagnostics. AemiMermaid's header, ask's definition files and the documentation-layout checks of ask and analyzerkit use the same locator.
 
-Status: decided; built in phase 6 of the plan.
+Built in phase 6 of the plan.

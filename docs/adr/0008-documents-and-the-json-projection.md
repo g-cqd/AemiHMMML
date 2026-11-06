@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0008: Each format its own document, one projection to JSON
 
 YAML has tags, anchors and complex keys; TOML has date-times and tables that may only be extended in certain ways. A shared value type would

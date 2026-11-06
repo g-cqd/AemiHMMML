@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0019: toml++ is the TOML differential, run by the adapter
 
-Status: decided and built, 2026-11-06 (owed since phase 1).
+Built 2026-11-06 (owed since phase 1).
 
 ## Decision
 

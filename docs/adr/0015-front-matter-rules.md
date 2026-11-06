@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0015: The front matter rules
 
-Status: decided and built, 2026-11-06 (step 2 of phase 6). It writes down the rules ADR-0009 asked for.
+Built 2026-11-06 (step 2 of phase 6). It writes down the rules ADR-0009 asked for.
 
 ## Context
 

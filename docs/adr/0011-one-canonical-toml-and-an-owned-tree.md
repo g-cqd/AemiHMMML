@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0011: One canonical TOML, written from an owned tree; Codable over the views
 
-Status: decided and built, 2026-11-05 (phase 2 of the plan).
+Built 2026-11-05 (phase 2 of the plan).
 
 ## Context
 

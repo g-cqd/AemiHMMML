@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0013: YAML documents — a flat graph, resolved once, keys unique by value
 
-Status: decided and built, 2026-11-05 (phase 4 of the plan).
+Built 2026-11-05 (phase 4 of the plan).
 
 ## Decision
 

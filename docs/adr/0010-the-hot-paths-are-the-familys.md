@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0010: The hot paths are the family's
 
 Every byte-level problem AemiHMMML has, a sibling has already solved and measured. Before a scanner is written here, the sibling's

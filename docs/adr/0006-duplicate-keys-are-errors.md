@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0006: Duplicate keys are errors
 
 YAML 1.2.2 requires the keys of a mapping to be unique, and TOML forbids defining a key or table twice. In strict mode a repeat is an error

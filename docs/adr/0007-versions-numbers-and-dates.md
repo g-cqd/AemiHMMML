@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0007: Versions, numbers and dates
 
 Versions are explicit options: TOML 1.0 or 1.1 (1.1, released 2025-12-24, is the default), YAML 1.2.2 with `%YAML` honoured. A TOML 1.1 feature in

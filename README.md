@@ -10,8 +10,10 @@ times fewer, Codable decoding 2.1 times fewer; writing runs at 330 to 660 MB/s w
 `AemiHMMML` umbrella adds Foundation's `Date` and the projection to AemiJSON's `JSONValue`. **YAML reads to events**: `AemiYAML`
 passes yaml-test-suite's 402 event cases and refuses its 94 error cases, at libyaml's instructions per byte on a corpus of real
 files (170; libfyaml 142, rapidyaml 42: ADR-0012). In recovering mode it never throws, and reads what it can (ADR-0014). Documents compose (aliases bounded, the core, JSON and failsafe
-schemas, duplicate keys refused) and match the suite's 282 `in.json` files; `YAMLDecoder` shares TOML's decoder (ADR-0013). The
-emitter and `YAMLEncoder` (phase 5) are next. The plan, the inventory of what it replaces and the order of work are in `docs/research/plan-2026-11-05.md`; the decisions are in `docs/adr/`.
+schemas, duplicate keys refused) and match the suite's 282 `in.json` files; `YAMLDecoder` shares TOML's decoder (ADR-0013). **YAML writes**:
+`YAMLEmitter` keeps the events' styles (ADR-0016), `YAMLEncoder` shares TOML's encoder (ADR-0017), and YAML 1.1's schema with merge keys is
+opt-in (ADR-0018). The rules the project runs on are in `docs/WHITE-PAPER.md`; the plan in `docs/research/plan-2026-11-05.md`; the decisions
+in `docs/adr/`; the open work in `docs/roadmap/`.
 
 ## What it will be
 

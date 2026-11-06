@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0001: Strict by default, recovery as a mode
 
 Every parser takes an `ErrorPolicy`. **`strict`** (the default) throws the first violation with its byte range; it is the mode the conformance

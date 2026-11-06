@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-06
+---
+
 # 0016: The YAML emitter keeps the events' styles, collected one document at a time
 
-Status: decided and built, 2026-11-06 (phase 5 of the plan, first part).
+Built 2026-11-06 (phase 5 of the plan, first part).
 
 ## Decision
 

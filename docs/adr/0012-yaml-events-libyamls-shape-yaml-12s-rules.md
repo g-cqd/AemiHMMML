@@ -1,6 +1,11 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0012: YAML events — libyaml's shape, YAML 1.2's rules
 
-Status: decided and built, 2026-11-05 (phase 3 of the plan).
+Built 2026-11-05 (phase 3 of the plan).
 
 ## Context
 

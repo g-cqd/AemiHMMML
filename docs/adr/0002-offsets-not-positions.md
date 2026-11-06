@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0002: Offsets, not positions
 
 Tapes, events and diagnostics carry byte offsets into the source. Lines and columns are computed on demand by `LineIndex`, which knows each

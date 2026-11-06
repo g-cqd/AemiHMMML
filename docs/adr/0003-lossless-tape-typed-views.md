@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0003: A lossless tape, typed views
 
 A parse writes a flat preorder tape of `AemiKernel.TapeSlot`s, as AemiJSON does: one slot per node, byte offsets into the source, no copy of

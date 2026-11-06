@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0004: Limits are part of the API
 
 `MarkupLimits` names every figure an input could make large: document bytes, depth, scalar bytes, YAML aliases, the nodes aliases stand for

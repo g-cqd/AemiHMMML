@@ -1,3 +1,8 @@
+---
+status: accepted
+date: 2026-11-05
+---
+
 # 0005: YAML schemas are chosen, never guessed
 
 How a plain scalar resolves (`true`, `0o17`, `.inf`, `~`) is a schema, and the schema is an option: `failsafe`, `json`, `core` (YAML 1.2.2 §10.3,
