@@ -22,7 +22,10 @@ extension YAMLDocument.Storage: MarkupStorage {
 
     func markupBool(_ node: Int32) -> Bool? { value(node).bool }
     func markupInteger(_ node: Int32) -> Int64? { value(node).integer }
-    func markupWideInteger(_ node: Int32) -> String? { value(node).markupWideInteger }
+    func markupBigInteger(_ node: Int32) -> BigInt? {
+        let scalar = value(node)
+        return scalar.node.kind == .scalar && scalar.node.resolved.wide ? scalar.bigInteger : nil
+    }
     func markupFloat(_ node: Int32) -> Double? { value(node).markupFloat }
     func markupString(_ node: Int32) -> String? {
         let scalar = value(node)
@@ -44,11 +47,6 @@ extension YAMLDocument.Storage: MarkupStorage {
 }
 
 extension YAMLValue {
-    /// An integer past 64 signed bits, as written: the core schema's integers are unbounded.
-    var markupWideInteger: String? {
-        node.kind == .scalar && node.resolved.kind == .int && node.resolved.wide ? text : nil
-    }
-
     var markupFloat: Double? {
         // @lm:accept:next replace-logical -- with `||`, an integer reads as the Double it equals, which the decoder does anyway
         node.kind == .scalar && node.resolved.kind == .float ? double : nil

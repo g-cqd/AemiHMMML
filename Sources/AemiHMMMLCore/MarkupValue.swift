@@ -34,9 +34,9 @@ public protocol MarkupStorage: AnyObject, Sendable {
     func markupBool(_ node: Int32) -> Bool?
     /// An integer that fits 64 signed bits.
     func markupInteger(_ node: Int32) -> Int64?
-    /// An integer too wide for 64 signed bits, as written (decimal with its sign, or `0x`/`0o`): a `UInt64` property may still hold
-    /// it. Nil for a format whose integers are 64-bit (TOML).
-    func markupWideInteger(_ node: Int32) -> String?
+    /// An integer too wide for 64 signed bits, exactly (aemi's `BigInt`): a `UInt64` property may still hold it. Nil for a format
+    /// whose integers are 64-bit (TOML).
+    func markupBigInteger(_ node: Int32) -> BigInt?
     /// A float (not an integer: the decoder converts those it may).
     func markupFloat(_ node: Int32) -> Double?
     /// What a `String` property reads.
@@ -54,7 +54,7 @@ public protocol MarkupStorage: AnyObject, Sendable {
 }
 
 extension MarkupStorage {
-    public func markupWideInteger(_ node: Int32) -> String? { nil }
+    public func markupBigInteger(_ node: Int32) -> BigInt? { nil }
 }
 
 /// One node of a document as the decoder sees it.
@@ -70,7 +70,7 @@ package struct MarkupView {
     var markupKind: MarkupKind { storage.markupKind(node) }
     var markupBool: Bool? { storage.markupBool(node) }
     var markupInteger: Int64? { storage.markupInteger(node) }
-    var markupWideInteger: String? { storage.markupWideInteger(node) }
+    var markupBigInteger: BigInt? { storage.markupBigInteger(node) }
     var markupFloat: Double? { storage.markupFloat(node) }
     var markupString: String? { storage.markupString(node) }
     var markupDateTime: RFC3339DateTime? { storage.markupDateTime(node) }

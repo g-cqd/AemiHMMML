@@ -37,7 +37,33 @@ struct YAML11Tests {
         for text in ["0o17", "1:60", "08", "_1", "0b", "0x", "0:30"] {
             #expect(try Self.value(text).integer == nil, "\(text)")
         }
-        #expect(try Self.value("18446744073709551616").markupWideInteger == "18446744073709551616")
+        #expect(try Self.value("18446744073709551616").bigInteger?.description == "18446744073709551616")
+    }
+
+    @Test("integers past 64 bits read exactly in every base and spelling, and decode into the types that hold them")
+    func wideIntegers() throws {
+        let ones = "0b" + String(repeating: "1", count: 64)
+        let cases: [(String, String)] = [
+            (ones, "18446744073709551615"), ("-" + ones, "-18446744073709551615"),
+            ("0x1_0000_0000_0000_0000", "18446744073709551616"),
+            ("0" + String(repeating: "7", count: 22), "73786976294838206463"),
+            ("4611686018427387904:0:0", "16602069666338596454400"), ("9_223_372_036_854_775_808", "9223372036854775808")
+        ]
+        for (text, value) in cases {
+            #expect(try Self.value(text).bigInteger?.description == value, "\(text)")
+            #expect(try Self.value(text).integer == nil, "\(text)")
+        }
+        #expect(try Self.value("12").bigInteger == 12 && Self.value("x").bigInteger == nil)
+        struct Holder: Decodable {
+            var max: UInt64
+            var min: Int64
+        }
+        let holder = try YAMLDecoder(options: Self.options)
+            .decode(Holder.self, from: "max: \(ones)\nmin: -0b1\(String(repeating: "0", count: 63))\n")
+        #expect(holder.max == .max && holder.min == .min)
+        #expect(throws: DecodingError.self) {
+            try YAMLDecoder(options: Self.options).decode(Holder.self, from: "max: 0x1_0000_0000_0000_0000\nmin: 0\n")
+        }
     }
 
     @Test("floats need their point; base 60, infinities and not-a-number; nulls in their spellings")

@@ -1,3 +1,5 @@
+internal import AemiKernel
+
 extension MarkupDecoding {
     struct Unkeyed: UnkeyedDecodingContainer {
         let decoding: MarkupDecoding
@@ -159,10 +161,14 @@ enum MarkupScalars {
         throws -> T
     {
         guard let whole = member.view.markupInteger else {
-            if let text = member.view.markupWideInteger {
-                guard let number = wide(type, text) else {
+            if let big = member.view.markupBigInteger {
+                // A value past 64 signed bits fits `T` (at most 64 bits) only as a `UInt64`, or as `Int64.min`.
+                guard
+                    let number = UInt64(exactly: big).flatMap(T.init(exactly:))
+                        ?? Int64(exactly: big).flatMap(T.init(exactly:))
+                else {
                     throw DecodingError.dataCorrupted(
-                        DecodingError.Context(codingPath: member.path, debugDescription: "\(text) does not fit \(type)")
+                        DecodingError.Context(codingPath: member.path, debugDescription: "\(big) does not fit \(type)")
                     )
                 }
                 return number
@@ -175,23 +181,5 @@ enum MarkupScalars {
             )
         }
         return number
-    }
-
-    /// A wide integer's text as `T`: a sign, then decimal digits or `0x`/`0o` and their digits; nil when it does not fit.
-    private static func wide<T: FixedWidthInteger>(_ type: T.Type, _ text: String) -> T? {
-        var digits = Substring(text)
-        let negative = digits.first == "-"
-        if digits.first == "-" || digits.first == "+" { digits = digits.dropFirst() }
-        var radix = 10
-        if digits.hasPrefix("0x") || digits.hasPrefix("0o") {
-            radix = digits.hasPrefix("0x") ? 16 : 8
-            digits = digits.dropFirst(2)
-        }
-        guard let magnitude = T(digits, radix: radix) else {
-            // Negative and wider than `T`'s positive range: only the minimum fits, written as its magnitude plus one less.
-            guard negative, T.isSigned, let edge = T("-" + digits, radix: radix) else { return nil }
-            return edge
-        }
-        return negative ? (T.isSigned ? 0 - magnitude : (magnitude == 0 ? 0 : nil)) : magnitude
     }
 }

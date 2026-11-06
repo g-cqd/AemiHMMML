@@ -137,6 +137,14 @@ public struct YAMLValue: Sendable {
             ? Int64(bitPattern: node.resolved.payload) : nil
     }
 
+    /// Any integer, exactly: the core schema's integers are unbounded, so one past 64 bits (``integer`` is nil for it) is read here
+    /// from its text, in its base and, under ``YAMLSchema/yaml11``, its spelling (underscores, `0b`, a leading-zero octal, base 60).
+    public var bigInteger: BigInt? {
+        guard node.kind == .scalar, node.resolved.kind == .int else { return nil }
+        guard node.resolved.wide else { return BigInt(Int64(bitPattern: node.resolved.payload)) }
+        return YAMLIntegerText.value(bytes, yaml11: storage.schema == .yaml11)
+    }
+
     /// A float, or an integer a `Double` holds exactly.
     public var double: Double? {
         guard node.kind == .scalar else { return nil }

@@ -26,8 +26,8 @@ Built 2026-11-06 (phase 5 of the plan, second part).
 - **`YAMLEmitter.emit(_ document:)`** writes a composed document as it was read: its nodes in order with their styles, tags and
   anchors, and an alias as an alias.
 - **Integers past 64 signed bits** decode into the types that hold them. YAML's core integers have no bound, so `0xFFFF…` and
-  `18446744073709551615` read into `UInt64`, and `-9223372036854775808` into `Int64`. `MarkupStorage.markupWideInteger` gives the
-  written text, which the decoder parses in the requested type. Formats with 64-bit integers return nil.
+  `18446744073709551615` read into `UInt64`, and `-9223372036854775808` into `Int64`. `MarkupStorage.markupBigInteger` gives the
+  exact value (aemi's `BigInt`, ADR-0022), which the decoder narrows to the requested type. Formats with 64-bit integers return nil.
 
 ## Verification
 
