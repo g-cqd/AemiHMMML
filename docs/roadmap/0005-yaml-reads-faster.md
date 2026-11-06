@@ -23,6 +23,8 @@ First pass (profiled with `sample` on a release driver, measured in instructions
 - Key hashes through aemi's `KeyedHash` (SipHash-1-3, eight bytes a step), as TOML's key index already did (ADR-0010; aemi made
   it for this profile). Collections mix their children's keyed hashes instead of building a `Hasher` per pair: corpus
   composition 226M to 214M, Deployments decoding 347M to 339M.
+- `YAMLNode` repacked: 32-bit offsets and indices, one-byte fields last, about 88 bytes instead of about 152. Instructions barely
+  move (−0.3 %), since copying is memory-bound; peak memory composing the Deployments fell from 18–21 MB to 13.5–16 MB.
 - Tried and reverted: feeding the key hasher eight bytes at a time. `Hasher` already buffers bytes; the number did not move.
 
 Benchmarks against the parent commit: corpus composition 329M to 226M instructions (allocations 96K to 72K), Deployments decoding
