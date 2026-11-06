@@ -23,6 +23,8 @@ struct TOMLParser {
     var parts: ArraySlice<TOMLKeyPart> { partStore[..<partCount] }
     /// Scratch for decoding one escaped key.
     var scratch: [UInt8] = []
+    /// A recovering parse replaced a value (ADR-0006: the last one stands); the replaced ones leave their tables at the end.
+    var retired = false
 
     /// The C0 controls other than tab, LF and CR, and DEL: forbidden everywhere in TOML (ADR-0010).
     static let forbiddenControls: AemiKernels.ByteSet? = AemiKernels.ByteSet(
@@ -83,6 +85,7 @@ struct TOMLParser {
                 skipPastLine()
             }
         }
+        if retired { pruneRetired() }
     }
 
     // MARK: Lines

@@ -19,6 +19,40 @@ extension TOMLParser {
         return (index.find(hash: hash, table: table, key: key, nodes: nodes, source: source, arena: keyArena), hash)
     }
 
+    /// A replaced value's `parent`: no lookup finds it, and it leaves its table when the parse ends.
+    static let retiredParent: Int32 = -2
+
+    /// Whether `node` was written as a value (`key = value`), so a recovering parse may replace it.
+    private func isReplaceable(_ node: Int32) -> Bool {
+        switch (nodes[Int(node)].kind, nodes[Int(node)].origin) {
+            case (.table, .inline), (.array, .staticArray): true
+            case (.table, _), (.array, _): false
+            default: true
+        }
+    }
+
+    /// Takes the replaced values out of their tables, in one pass over the nodes.
+    mutating func pruneRetired() {
+        for id in nodes.indices where nodes[id].first >= 0 && nodes[id].parent != Self.retiredParent {
+            var member = nodes[id].first
+            var last: Int32 = -1
+            var count: Int32 = 0
+            nodes[id].first = -1
+            while member >= 0 {
+                let next = nodes[Int(member)].next
+                if nodes[Int(member)].parent != Self.retiredParent {
+                    if last >= 0 { nodes[Int(last)].next = member } else { nodes[id].first = member }
+                    last = member
+                    count += 1
+                }
+                member = next
+            }
+            if last >= 0 { nodes[Int(last)].next = -1 }
+            nodes[id].last = last
+            nodes[id].count = count
+        }
+    }
+
     /// Whether `node` lies in an inline table whose brace has closed.
     func isClosed(_ node: Int32) -> Bool {
         let owner = nodes[Int(node)].owner
@@ -93,8 +127,18 @@ extension TOMLParser {
         switch destination {
             case .member(let table, let key):
                 let (found, hash) = child(of: table, key)
-                if found != nil {
-                    throw Diagnostic(.tomlDuplicateKey, at: key.written, "this key is already defined in its table")
+                if let found {
+                    let duplicate = Diagnostic(
+                        .tomlDuplicateKey,
+                        at: key.written,
+                        "this key is already defined in its table"
+                    )
+                    // Recovering (ADR-0006): a value written as `key = value` is replaced by the last one; a table a header or a
+                    // dotted key made keeps the rules it has.
+                    guard options.policy == .recovering, isReplaceable(found) else { throw duplicate }
+                    try diagnostics.report(duplicate)
+                    nodes[Int(found)].parent = Self.retiredParent
+                    retired = true
                 }
                 return try makeNode(kind, origin: origin, parent: table, key: (key, hash), start: start)
             case .element(let array):

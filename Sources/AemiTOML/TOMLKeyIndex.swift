@@ -24,7 +24,10 @@ struct TOMLKeyIndex: Sendable {
         var member = nodes[Int(table)].first
         while member >= 0 {
             let node = nodes[Int(member)]
-            if Int(node.keyLength) == key.count, matches(node, key, source: source, arena: arena) { return member }
+            if Int(node.keyLength) == key.count, node.parent == table, matches(node, key, source: source, arena: arena)
+            {
+                return member
+            }
             member = node.next
         }
         return nil
