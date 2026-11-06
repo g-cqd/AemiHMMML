@@ -127,7 +127,9 @@
         "Sources/**",
         "Benchmarks/**",
         "Package.swift",
-        "Package.resolved"
+        "Package.resolved",
+        ".ci/action.json",
+        ".github/workflows/**"
       ],
       "benchmark": {
         "shared": [
