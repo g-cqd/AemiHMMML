@@ -42,6 +42,11 @@
           "into": ".build/fixtures/yaml-test-suite"
         },
         {
+          "git": "https://github.com/editorconfig/editorconfig-core-test",
+          "commit": "895b3a65d0d823dbd0acf2bc402376381995d1b1",
+          "into": ".build/fixtures/editorconfig-core-test"
+        },
+        {
           "git": "https://github.com/actions/starter-workflows",
           "commit": "e3c451d60f119b71caebf13c98ac45da6e15b4b7",
           "into": ".build/fixtures/corpus/actions-starter-workflows"
@@ -94,6 +99,12 @@
       "after": "macos-debug"
     },
     {
+      "id": "editorconfig-test",
+      "title": "Conformance · editorconfig-core-test",
+      "run": "swift build -c release --package-path Tools/EditorConfigAdapter --scratch-path .build/editorconfig-adapter && A=\"$(swift build -c release --package-path Tools/EditorConfigAdapter --scratch-path .build/editorconfig-adapter --show-bin-path)/editorconfig\" && cmake -S .build/fixtures/editorconfig-core-test -B .build/editorconfig-core-test -DEDITORCONFIG_CMD=\"$A\" > /dev/null && ctest --test-dir .build/editorconfig-core-test --output-on-failure -j 4",
+      "after": "macos-debug"
+    },
+    {
       "id": "toml-differential",
       "title": "Verification · toml++ Differential",
       "run": "(brew list tomlplusplus > /dev/null 2>&1 || brew install --quiet tomlplusplus) && clang++ -std=c++17 -O2 -w -I\"$(brew --prefix)/include\" Benchmarks/References/toml_tagged.cpp -o .build/tomlpp-decoder && swift test --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter-tests && swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter && A=\"$(swift build -c release --package-path Tools/TOMLTestAdapter --scratch-path .build/toml-test-adapter --show-bin-path)/toml-test-adapter\" && \"$A\" differential .build/tomlpp-decoder --mutations 10 --known Tools/TOMLTestAdapter/Differential/known.txt .build/fixtures/toml-test/tests .build/fixtures/corpus Tools/TOMLTestAdapter/Differential/inputs",
@@ -134,8 +145,8 @@
     },
     {
       "id": "fuzz",
-      "title": "Verification · libFuzzer (YAML, TOML)",
-      "run": ".ci/swift-ci run suites && swift build -c release --package-path Tools/Fuzz --scratch-path .build/fuzz -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library && mkdir -p .build/fuzz-corpus/yaml .build/fuzz-corpus/toml && find .build/fixtures/yaml-test-suite .build/fixtures/corpus -type f \\( -name '*.yaml' -o -name '*.yml' \\) -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/yaml {} + && find .build/fixtures/toml-test/tests .build/fixtures/corpus -type f -name '*.toml' -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/toml {} + && .build/fuzz/release/FuzzYAML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/yaml && .build/fuzz/release/FuzzTOML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/toml",
+      "title": "Verification · libFuzzer (YAML, TOML, EditorConfig)",
+      "run": ".ci/swift-ci run suites && swift build -c release --package-path Tools/Fuzz --scratch-path .build/fuzz -Xswiftc -sanitize=fuzzer,address -Xswiftc -parse-as-library && mkdir -p .build/fuzz-corpus/yaml .build/fuzz-corpus/toml && find .build/fixtures/yaml-test-suite .build/fixtures/corpus -type f \\( -name '*.yaml' -o -name '*.yml' \\) -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/yaml {} + && find .build/fixtures/toml-test/tests .build/fixtures/corpus -type f -name '*.toml' -size -32k -exec cp --backup=numbered -t .build/fuzz-corpus/toml {} + && .build/fuzz/release/FuzzYAML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/yaml && .build/fuzz/release/FuzzTOML -max_total_time=900 -timeout=5 -rss_limit_mb=2048 -max_len=8192 .build/fuzz-corpus/toml && mkdir -p .build/fuzz-corpus/editorconfig && cp .build/fixtures/editorconfig-core-test/*/*.in .build/fuzz-corpus/editorconfig/ && .build/fuzz/release/FuzzEditorConfig -max_total_time=300 -timeout=5 -rss_limit_mb=2048 -max_len=4096 .build/fuzz-corpus/editorconfig",
       "os": "linux",
       "cadence": [
         "nightly",

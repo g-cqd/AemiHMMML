@@ -22,6 +22,7 @@ in `docs/adr/`; the open work in `docs/roadmap/`.
 | `AemiTOML` | TOML 1.0.0 and 1.1.0: documents, a canonical writer, `TOMLEncoder` and `TOMLDecoder` | [toml-test](https://github.com/toml-lang/toml-test) v2.2.0, decoder and encoder (266 valid, 519 invalid) |
 | `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode, `YAMLEmitter` and `YAMLEncoder`, YAML 1.1's schema with merge keys, opt-in | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
 | `AemiFrontMatter` | Heads of Markdown and similar texts (`---` YAML, `+++` TOML, a leading JSON object), streaming-aware, read in place, for AemiMarkdown, AemiMermaid and ask (done) | one fixture per rule, each from Jekyll's, Hugo's, Mermaid's or ask's code (ADR-0015) |
+| `AemiConfigLines` | EditorConfig: files, globs and the properties of a path (done); then `.env`, properties, INI dialects, git-config | [editorconfig-core-test](https://github.com/editorconfig/editorconfig-core-test) (203 cases) |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 
 Later, each with its own oracle: EditorConfig, `.env`, properties and INI dialects, KDL 2.0, property lists. JSON, JSON5 and JSONC belong to

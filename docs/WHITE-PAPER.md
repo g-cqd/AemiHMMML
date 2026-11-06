@@ -38,6 +38,7 @@ Expected values come from the oracle, never from the author.
 | YAML 1.2.2 | yaml-test-suite: events, `in.json`, error cases, the emitter's `out.yaml` and `emit.yaml` |
 | YAML, peers | libyaml, libfyaml, rapidyaml: behaviour where they follow the spec, speed always |
 | Front matter | one fixture per rule, each from Jekyll's, Hugo's, Mermaid's or ask's code (ADR-0015) |
+| EditorConfig | editorconfig-core-test, the reference core's suite, under ctest through `Tools/EditorConfigAdapter` (ADR-0021) |
 | Table rules, indentation, simple keys | TLA+ models in `docs/formal`, each paired with a Swift oracle test that checks the parser against the model |
 
 A divergence is recorded with the oracle's answer and the specification text that settles it. Known divergences are listed in a file the

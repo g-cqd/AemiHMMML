@@ -28,6 +28,11 @@ let package = Package(
             name: "FuzzTOML",
             dependencies: [.product(name: "AemiTOML", package: "AemiHMMML")],
             swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .executableTarget(
+            name: "FuzzEditorConfig",
+            dependencies: [.product(name: "AemiConfigLines", package: "AemiHMMML")],
+            swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]
 )

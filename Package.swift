@@ -39,10 +39,14 @@ let package = Package(
         .library(name: "AemiTOML", targets: ["AemiTOML"]),
         .library(name: "AemiYAML", targets: ["AemiYAML"]),
         .library(name: "AemiFrontMatter", targets: ["AemiFrontMatter"]),
+        .library(name: "AemiConfigLines", targets: ["AemiConfigLines"]),
         .library(name: "AemiHMMML", targets: ["AemiHMMML"])
     ],
     dependencies: [aemiDependency, aemiJSONDependency, collectionsDependency],
     targets: [
+        // Line-oriented configuration formats (plan phase 8): EditorConfig first, with its core's test suite as the oracle.
+        .target(name: "AemiConfigLines", swiftSettings: strictSettings),
+        .testTarget(name: "AemiConfigLinesTests", dependencies: ["AemiConfigLines"], swiftSettings: strictSettings),
         .target(
             name: "AemiHMMMLCore",
             dependencies: [
