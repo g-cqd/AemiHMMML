@@ -18,7 +18,7 @@ emitter and `YAMLEncoder` (phase 5) are next. The plan, the inventory of what it
 | Product | Format | Oracle |
 |---|---|---|
 | `AemiTOML` | TOML 1.0.0 and 1.1.0: documents, a canonical writer, `TOMLEncoder` and `TOMLDecoder` | [toml-test](https://github.com/toml-lang/toml-test) v2.2.0, decoder and encoder (266 valid, 519 invalid) |
-| `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode (done); emitter next | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
+| `AemiYAML` | YAML 1.2.2: events, documents, `YAMLDecoder`, recovering mode, `YAMLEmitter` and `YAMLEncoder`, YAML 1.1's schema with merge keys, opt-in | [yaml-test-suite](https://github.com/yaml/yaml-test-suite) (402 cases, 94 errors) |
 | `AemiFrontMatter` | Heads of Markdown and similar texts (`---` YAML, `+++` TOML, a leading JSON object), streaming-aware, read in place, for AemiMarkdown, AemiMermaid and ask (done) | one fixture per rule, each from Jekyll's, Hugo's, Mermaid's or ask's code (ADR-0015) |
 | `AemiHMMML` | Foundation's `Date`, projection to AemiJSON's `JSONValue` | |
 
@@ -29,7 +29,7 @@ Later, each with its own oracle: EditorConfig, `.env`, properties and INI dialec
 
 - **Strict by default, recovery as a mode** (ADR-0001): one parser; `recovering` returns what it read with bounded diagnostics, never throws.
 - **Limits are part of the API** (ADR-0004): depth, sizes, YAML aliases and what they expand to; explicit stacks, linear time on every input.
-- **Schemas are chosen, never guessed** (ADR-0005): YAML 1.2 core by default, YAML 1.1's `yes`/`on`/`<<` only when asked; tags construct nothing.
+- **Schemas are chosen, never guessed** (ADR-0005, ADR-0018): YAML 1.2 core by default, YAML 1.1's `yes`/`on`/`<<` only when asked; tags construct nothing.
 - **Duplicate keys are errors** (ADR-0006).
 
 ```swift

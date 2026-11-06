@@ -10,6 +10,10 @@ public enum YAMLSchema: Sendable, Hashable {
     /// §10.3, the default: JSON's forms and their capitalised spellings, `~` and the empty scalar for null, `0o` and `0x`
     /// integers, `.inf` and `.nan`; any other plain scalar is a string.
     case core
+    /// YAML 1.1's types (yaml.org/type), opt-in (ADR-0018): `yes`/`no`/`on`/`off`/`y`/`n` booleans (the "Norway problem", and
+    /// GitHub's `on:` key, are why it is never the default), binary, octal (`012`) and base 60 integers, `_` in numbers, and merge
+    /// keys (`<<`). Timestamps are not built: they read as strings.
+    case yaml11
 }
 
 /// What a scalar resolves to.
@@ -41,6 +45,7 @@ enum YAMLResolver {
     static func resolve(tag: String?, style: YAMLScalarStyle, value: ArraySlice<UInt8>, schema: YAMLSchema)
         -> YAMLResolved?
     {
+        if schema == .yaml11 { return YAML11Resolver.resolve(tag: tag, style: style, value: value) }
         switch tag {
             case strTag?, "!"?: return YAMLResolved(kind: .string)
             case nullTag?: return null(value, schema: .core) ?? (value.isEmpty ? YAMLResolved(kind: .null) : nil)
@@ -110,6 +115,11 @@ enum YAMLResolver {
             if over || carry { return YAMLResolved(kind: .int, wide: true) }
             magnitude = sum
         }
+        return integer(magnitude, negative: negative)
+    }
+
+    /// An integer from its magnitude and sign: its bits when it fits 64 signed bits, wide otherwise.
+    static func integer(_ magnitude: UInt64, negative: Bool) -> YAMLResolved {
         if negative {
             guard magnitude <= UInt64(Int64.max) + 1 else { return YAMLResolved(kind: .int, wide: true) }
             return YAMLResolved(

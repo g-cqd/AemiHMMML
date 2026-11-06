@@ -10,6 +10,10 @@ public func fuzzYAML(_ data: UnsafePointer<UInt8>, _ count: Int) -> CInt {
     let source = Array(unsafe UnsafeBufferPointer(start: data, count: count))
     if let parser = try? YAMLParser(parsing: source) { readEvents(parser, count: count, strict: true) }
     if let documents = try? YAMLDocument.documents(parsing: source) { walk(documents, count: count) }
+    // YAML 1.1's merges add aliases of their own: bounded by the same limits.
+    if let documents = try? YAMLDocument.documents(parsing: source, options: YAMLOptions(schema: .yaml11)) {
+        walk(documents, count: count)
+    }
     if let events = signature(source) {
         do {
             let written = try YAMLEmitter.reformat(source)

@@ -45,6 +45,8 @@ extension Diagnostic.Code {
     public static let yamlDuplicateKey = Self(rawValue: "yaml-duplicate-key")
     /// A scalar whose value does not fit its tag, or (under the JSON schema) a plain scalar that is none of JSON's.
     public static let yamlResolution = Self(rawValue: "yaml-resolution")
+    /// A merge key's value (``YAMLSchema/yaml11``) that is not a mapping or a sequence of mappings.
+    public static let yamlMerge = Self(rawValue: "yaml-merge")
     /// A character YAML forbids in a stream: a C0 or C1 control other than tab and line breaks, DEL, U+FFFE or U+FFFF.
     public static let yamlControlCharacter = Self(rawValue: "yaml-control-character")
 }

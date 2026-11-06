@@ -31,8 +31,12 @@ extension YAMLEmitter {
         let tag = node.tag >= 0 ? storage.tags[Int(node.tag)] : nil
         switch node.kind {
             case .alias:
-                let target = storage.nodes[Int(node.target)]
-                try alias(target.anchor.map { String(decoding: storage.source[$0], as: UTF8.self) } ?? "")
+                // A merged pair (``YAMLSchema/yaml11``) names a node without an anchor: it is written where it is merged.
+                guard let name = storage.nodes[Int(node.target)].anchor else {
+                    try start(node.target, storage, &stack)
+                    return
+                }
+                try alias(String(decoding: storage.source[name], as: UTF8.self))
             case .scalar:
                 let text = YAMLValue(storage: storage, index: index).text ?? ""
                 try scalar(text, anchor: anchor, tag: tag, style: node.scalar.style)

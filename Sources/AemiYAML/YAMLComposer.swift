@@ -11,8 +11,8 @@ struct YAMLComposer {
     /// The current document's anchors, by name.
     private var anchors: [ArraySlice<UInt8>: Int32] = [:]
     var stack: [Frame] = []
-    private var aliases = 0
-    private var expansion = 0
+    var aliases = 0
+    var expansion = 0
     var documents: [(root: Int32, version: YAMLVersionDirective?)] = []
     private var root: Int32 = -1
     private var version: YAMLVersionDirective?
@@ -22,7 +22,7 @@ struct YAMLComposer {
     private var recovering: Bool { options.policy == .recovering }
 
     /// Throws `diagnostic` under strict; records it under recovering, and the caller repairs.
-    private mutating func violate(_ diagnostic: Diagnostic) throws(Diagnostic) {
+    mutating func violate(_ diagnostic: Diagnostic) throws(Diagnostic) {
         guard recovering else { throw diagnostic }
         recovered.append(diagnostic)
     }
@@ -34,6 +34,8 @@ struct YAMLComposer {
         var expectingKey = true
         /// A recovering composition replaced a key: the earlier pairs leave the mapping when it closes.
         var replaced = false
+        /// A merge key (`<<`, ``YAMLSchema/yaml11``): the pairs it names join the mapping when it closes.
+        var merges = false
     }
 
     init(parser: YAMLParser, options: YAMLOptions) {
@@ -78,6 +80,7 @@ struct YAMLComposer {
                 case .sequenceEnd, .mappingEnd:
                     let frame = stack.removeLast()
                     if frame.replaced { prune(frame.node) }
+                    if frame.merges { try merge(frame.node, keys: frame.keys) }
                     nodes[Int(frame.node)].end = event.range.upperBound
                     finish(frame.node)
                     try attach(frame.node)
@@ -206,8 +209,14 @@ struct YAMLComposer {
                     stack[top].keys.insert(child, hash: nodes[Int(child)].hash)
                 }
             }
+            if stack[top].expectingKey, options.schema == .yaml11, isMergeKey(child) { stack[top].merges = true }
             stack[top].expectingKey.toggle()
         }
+        link(child, to: parent)
+    }
+
+    /// `child` as `parent`'s last child.
+    mutating func link(_ child: Int32, to parent: Int32) {
         nodes[Int(child)].parent = parent
         if nodes[Int(parent)].first < 0 {
             nodes[Int(parent)].first = child
