@@ -15,14 +15,14 @@ let strictSettings: [SwiftSetting] = [
 
 let aemiDependency: Package.Dependency = .package(
     url: "https://github.com/Aemi-Studio/aemi.git",
-    revision: "0bae2edb1a89bd3d931fb3122c2184cc5c368834"
+    revision: "8db567405295d7d8aa4852a66af1cd46bf46a617"
 )
 
 // AemiJSON for the JSON projection (ADR-0008), in the umbrella only; swift-collections in AemiJSON's own range, for `JSONValue`'s
 // ordered objects.
 let aemiJSONDependency: Package.Dependency = .package(
     url: "https://github.com/g-cqd/AemiJSON.git",
-    revision: "31ce46141763637c60515eb260f67f57954e69bd"
+    revision: "5114554d1cbb16625556fec05669a00eaf4ada89"
 )
 let collectionsDependency: Package.Dependency = .package(
     url: "https://github.com/apple/swift-collections.git",
