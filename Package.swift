@@ -22,7 +22,7 @@ let aemiDependency: Package.Dependency = .package(
 // ordered objects.
 let aemiJSONDependency: Package.Dependency = .package(
     url: "https://github.com/g-cqd/AemiJSON.git",
-    revision: "fb3d1649133eee852989bb7b2f40469b8a61c88d"
+    revision: "968ecd17e9ba744655d5c3b60d3e759cf61dc211"
 )
 let collectionsDependency: Package.Dependency = .package(
     url: "https://github.com/apple/swift-collections.git",
