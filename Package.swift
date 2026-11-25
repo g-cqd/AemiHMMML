@@ -13,12 +13,12 @@ let strictSettings: [SwiftSetting] = [
 
 let aemiDependency: Package.Dependency = .package(
     url: "https://github.com/Aemi-Studio/aemi.git",
-    revision: "340c49040faa49313d5632003d8224d9d0084fb0"
+    revision: "32f1d61e0ee2fe19af99c1c1a040f1fbdae91d4a"
 )
 
 let aemiJSONDependency: Package.Dependency = .package(
     url: "https://github.com/g-cqd/AemiJSON.git",
-    revision: "53e572d875cc42ade99083641efdfac7ab865f31"
+    revision: "fdcf306b1ffbbd29161df787ae2ea97e56718d2c"
 )
 let collectionsDependency: Package.Dependency = .package(
     url: "https://github.com/apple/swift-collections.git",
