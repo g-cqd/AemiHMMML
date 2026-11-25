@@ -1,14 +1,24 @@
-# Working in AemiHMMML
+# Working in `AemiHMMML`
 
-Parsers and writers for YAML, TOML and the formats after them. Read `docs/research/plan-2026-11-05.md`, then `docs/adr/`.
+TOML, YAML, KDL, and configuration format parsers/encoders for Swift 6 (`g-cqd/AemiHMMML`).
 
-- **Conformance is measured, not claimed.** A format's phase closes when its suite passes whole and its ratchet of known failures is empty. A
-  failing case is fixed or listed with its reason, never skipped silently.
-- **One parser, two policies** (ADR-0001). Recovery happens at the points where strict would throw; a document strict accepts reads identically
-  in both modes.
-- **No recursion on input, linear time, every limit tested** (ADR-0004). A new loop needs its bound; a new limit needs a test that passes it.
-- **Offsets, not positions** (ADR-0002); no copies of source text on the tape (ADR-0003).
-- **A test that cannot fail says nothing.** A new check gets a failing case first; a formal model gets a `.buggy.cfg` control that must be refuted.
-- **Dependencies:** packages from `g-cqd`, `Aemi-Studio`, `apple` and `swiftlang` only. Reference parsers (rapidyaml, libfyaml, toml++,
-  TOMLDecoder) are oracles in benchmarks and differential tests, never dependencies.
-- Style: Aemi's `.swift-format` and `.swiftlint.yml`; one primary type per file; files under 250 lines; docs say why, not what.
+## Engineering principles
+
+- **Verify claims with executable checks.** Write a failing test or measurement before changing behaviour; never state unmeasured performance or unverified behaviour as fact.
+- **Strictness.** Swift 6 language mode, strict concurrency, strict memory safety where configured, and warnings as errors. No force-unwraps or force-casts in production paths.
+- **Bounded work and safety.** Bound untrusted inputs, recursion depth, and memory before allocation; handle errors explicitly without crashing on hostile input.
+- **Factual documentation.** Keep `README.md`, user docs, and `Package.swift` aligned with the current codebase—no roadmaps, speculative plans, or diary logs in public docs.
+
+Formal TLA+ models for YAML indentation, simple keys, and TOML tables live in `docs/formal/`. Keep format core targets free of Foundation.
+
+## Commands
+
+```sh
+swift test
+swift test -c release
+swift format lint --strict --recursive Sources Tests Package.swift
+```
+
+## Architecture records
+
+Accepted architectural decisions live in `docs/adr/` (when present). Only add a new ADR for durable architectural choices; mark superseded records clearly.
