@@ -11,7 +11,7 @@ let package = Package(
     dependencies: [
         .package(path: "../.."),
         // SplitMix64 for the seeded inputs; the revision the root manifest pins.
-        .package(url: "https://github.com/Aemi-Studio/aemi.git", revision: "32f1d61e0ee2fe19af99c1c1a040f1fbdae91d4a")
+        .package(url: "https://github.com/Aemi-Studio/aemi.git", revision: "04cfb910446f446476c0c853317931f3444b1323")
     ],
     targets: [
         .executableTarget(
