@@ -11,12 +11,6 @@ updates:
   - package-ecosystem: "swift"
     directories:
       - "/"
-      - "/Benchmarks"
-      - "/Tools/ConfigLinesAdapter"
-      - "/Tools/EditorConfigAdapter"
-      - "/Tools/Fuzz"
-      - "/Tools/KDLAdapter"
-      - "/Tools/TOMLTestAdapter"
     schedule:
       interval: "weekly"
       day: "monday"
